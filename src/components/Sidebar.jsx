@@ -103,6 +103,11 @@ const Sidebar = () => {
                 <span>💸</span> Gastos
               </Link>
             </li>
+            <li>
+              <Link to="/corte" onClick={handleLinkClick} className="block p-3 rounded hover:bg-slate-700 transition-colors flex items-center gap-2">
+           <span>📠</span> Corte de Caja
+             </Link>
+            </li>
 
             <li>
               <Link to="/nomina" onClick={handleLinkClick} className="block p-3 rounded hover:bg-slate-700 transition-colors flex items-center gap-2">

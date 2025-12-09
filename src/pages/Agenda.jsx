@@ -9,134 +9,113 @@ const Agenda = () => {
   const [loading, setLoading] = useState(true);
   const [modalNuevoAbierto, setModalNuevoAbierto] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState(null); 
-
-  // Fecha actual para filtrar
   const [fechaFiltro, setFechaFiltro] = useState(new Date());
 
-  useEffect(() => {
-    fetchData();
-  }, [fechaFiltro]); // Se recarga si cambias la fecha
+  useEffect(() => { fetchData(); }, [fechaFiltro]);
 
   async function fetchData() {
     setLoading(true);
     const { data: dataBarberos } = await supabase.from('barberos').select('*').order('nombre');
     setBarberos(dataBarberos || []);
-    await fetchCitas();
+
+    const inicioDia = new Date(fechaFiltro); inicioDia.setHours(0, 0, 0, 0);
+    const finDia = new Date(fechaFiltro); finDia.setHours(23, 59, 59, 999);
+
+    const { data } = await supabase
+      .from('citas')
+      .select(`*, servicios ( nombre, precio, duracion_min, duracion )`) // Traemos duracion
+      .gte('fecha_hora', inicioDia.toISOString())
+      .lte('fecha_hora', finDia.toISOString())
+      .order('fecha_hora', { ascending: true });
+
+    setCitas(data || []);
     setLoading(false);
   }
 
-  async function fetchCitas() {
-    // 1. Definimos el inicio y fin del día seleccionado para filtrar en la base de datos
-    // Esto es CLAVE: Le pedimos a Supabase solo lo de hoy, ajustado a tu zona horaria
-    const inicioDia = new Date(fechaFiltro);
-    inicioDia.setHours(0, 0, 0, 0);
-    
-    const finDia = new Date(fechaFiltro);
-    finDia.setHours(23, 59, 59, 999);
-
-    const { data, error } = await supabase
-      .from('citas')
-      .select(`*, servicios ( nombre, precio, duracion_min )`)
-      .gte('fecha_hora', inicioDia.toISOString()) // Mayor o igual al inicio del día
-      .lte('fecha_hora', finDia.toISOString())    // Menor o igual al fin del día
-      .order('fecha_hora', { ascending: true });
-
-    if (error) console.error(error);
-    else setCitas(data || []);
-  }
-
-  // --- FUNCIONES VISUALES ---
+  // --- HELPERS ---
   const formatearHora = (f) => new Date(f).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-  const formatearFechaEncabezado = (f) => f.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-  const formatearTelefono = (tel) => {
-    if (!tel) return 'Sin número';
-    const limpio = tel.toString().replace(/\D/g, '');
-    return limpio.length === 10 ? `(${limpio.slice(0, 3)}) ${limpio.slice(3, 6)}-${limpio.slice(6)}` : tel;
+  
+  // Calcula hora fin basado en duración
+  const obtenerHoraFin = (fechaInicio, duracionMin = 30) => {
+    const d = new Date(fechaInicio);
+    d.setMinutes(d.getMinutes() + duracionMin);
+    return formatearHora(d);
+  };
+
+  const enviarWhatsApp = (e, telefono, nombre, fecha) => {
+    e.stopPropagation(); // Evita abrir el modal de detalles
+    const mensaje = `Hola ${nombre}, confirmamos tu cita para hoy a las ${formatearHora(fecha)} en la Barbería. 💈`;
+    window.open(`https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   const obtenerColorBorde = (estado) => {
     switch(estado) {
-        case 'finalizada': return 'border-green-500 bg-green-50 opacity-75';
-        case 'cancelada': return 'border-red-400 bg-red-50 opacity-60';
-        case 'confirmada': return 'border-blue-500 bg-white';
-        default: return 'border-yellow-400 bg-white';
+        case 'finalizada': return 'border-l-green-500 bg-green-50/50 opacity-75';
+        case 'cancelada': return 'border-l-red-400 bg-red-50/50 opacity-60';
+        default: return 'border-l-indigo-500 bg-white';
     }
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen flex flex-col">
+    <div className="p-4 md:p-6 bg-gray-50 min-h-screen flex flex-col">
       <header className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-slate-900">📅 Agenda Diaria</h1>
-            {/* Muestra la fecha que estamos viendo */}
-            <p className="text-slate-500 text-lg capitalize">{formatearFechaEncabezado(fechaFiltro)}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">📅 Agenda</h1>
+            <p className="text-slate-500 text-sm capitalize">
+                {fechaFiltro.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
         </div>
-        
-        <div className="flex gap-2">
-            {/* Controles para cambiar de día (Opcional, pero muy útil) */}
-            <input 
-                type="date" 
-                className="border rounded-lg px-3 py-2 text-gray-700 font-medium"
+        <div className="flex gap-2 w-full md:w-auto">
+            <input type="date" className="border rounded-xl px-3 py-2 flex-1"
                 value={fechaFiltro.toISOString().split('T')[0]}
-                onChange={(e) => setFechaFiltro(new Date(e.target.value + 'T12:00:00'))} // Truco para evitar desfase al seleccionar
+                onChange={(e) => setFechaFiltro(new Date(e.target.value + 'T12:00:00'))}
             />
             <button onClick={() => setModalNuevoAbierto(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold shadow flex gap-2 items-center">
-              <span>+</span> Agendar
+                className="bg-slate-900 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2">
+              <span>+</span> <span className="hidden md:inline">Nueva Cita</span>
             </button>
         </div>
       </header>
 
       <ModalCita isOpen={modalNuevoAbierto} onClose={() => setModalNuevoAbierto(false)} alGuardar={fetchData} />
+      <ModalDetalles isOpen={!!citaSeleccionada} cita={citaSeleccionada} onClose={() => setCitaSeleccionada(null)} onUpdate={fetchData} />
 
-      <ModalDetalles 
-        isOpen={!!citaSeleccionada}     
-        cita={citaSeleccionada}         
-        onClose={() => setCitaSeleccionada(null)} 
-        onUpdate={fetchData}           
-      />
-
-      {loading ? (
-        <p className="text-center text-gray-500 mt-10">Cargando agenda...</p>
-      ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4 h-full">
+      {loading ? <div className="text-center py-20 animate-pulse text-gray-400">Cargando agenda...</div> : (
+        <div className="flex gap-4 overflow-x-auto pb-4 h-full snap-x">
           {barberos.map((barbero) => {
             const citasDelBarbero = citas.filter(c => c.barbero_id === barbero.id);
             return (
-              <div key={barbero.id} className="min-w-[300px] flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col">
-                <div className="p-4 border-b border-gray-100 bg-slate-50 rounded-t-xl text-center">
+              <div key={barbero.id} className="min-w-[85vw] md:min-w-[320px] flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col snap-center">
+                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
                     <h3 className="font-bold text-lg text-slate-800">{barbero.nombre}</h3>
-                    <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">
-                        {citasDelBarbero.length} citas
-                    </span>
+                    <span className="text-xs font-bold bg-white border px-2 py-1 rounded-full text-slate-500">{citasDelBarbero.length}</span>
                 </div>
 
-                <div className="p-3 flex-1 overflow-y-auto space-y-3 bg-gray-50/50 min-h-[200px]">
+                <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[300px]">
                     {citasDelBarbero.map((cita) => (
-                        <div 
-                            key={cita.id} 
-                            onClick={() => setCitaSeleccionada(cita)} 
-                            className={`p-3 rounded-lg shadow-sm border-l-4 hover:shadow-md transition-all cursor-pointer ${obtenerColorBorde(cita.estado)}`}
-                        >
-                            <div className="flex justify-between items-start mb-1">
-                                <span className="font-bold text-slate-700 text-lg">
-                                    {formatearHora(cita.fecha_hora)}
-                                </span>
-                                <span className="text-[10px] uppercase font-bold px-1 py-0.5 rounded bg-gray-200 text-gray-600">
-                                    {cita.estado}
-                                </span>
+                        <div key={cita.id} onClick={() => setCitaSeleccionada(cita)} 
+                            className={`p-3 rounded-xl shadow-sm border-l-4 hover:shadow-md transition-all cursor-pointer group relative ${obtenerColorBorde(cita.estado)}`}>
+                            
+                            {/* Botón Flotante WhatsApp (Solo aparece en hover o siempre en movil) */}
+                            {cita.cliente_telefono && (
+                                <button onClick={(e) => enviarWhatsApp(e, cita.cliente_telefono, cita.cliente_nombre, cita.fecha_hora)}
+                                    className="absolute top-2 right-2 bg-green-100 text-green-600 p-1.5 rounded-full hover:bg-green-500 hover:text-white transition-colors z-10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326z"/></svg>
+                                </button>
+                            )}
+
+                            <div className="flex gap-2 items-center mb-1">
+                                <span className="font-bold text-slate-700 text-lg">{formatearHora(cita.fecha_hora)}</span>
+                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion || 30)}</span>
                             </div>
-                            <h4 className="font-bold text-gray-800 text-sm">{cita.cliente_nombre}</h4>
-                            <p className="text-xs text-gray-500 mb-2">{cita.servicios?.nombre}</p>
-                            <div className="text-xs text-gray-400 flex justify-between">
-                                <span>📞 {formatearTelefono(cita.cliente_telefono)}</span>
-                            </div>
+                            <h4 className="font-bold text-gray-800 text-sm truncate pr-6">{cita.cliente_nombre}</h4>
+                            <p className="text-xs text-indigo-500 font-medium mb-1">{cita.servicios?.nombre}</p>
                         </div>
                     ))}
                     {citasDelBarbero.length === 0 && (
-                        <div className="text-center py-10 opacity-40">
-                            <p className="text-4xl mb-2">😴</p>
-                            <p className="text-sm">Disponible</p>
+                        <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50">
+                            <span className="text-4xl mb-2">💤</span>
+                            <span className="text-sm">Libre</span>
                         </div>
                     )}
                 </div>

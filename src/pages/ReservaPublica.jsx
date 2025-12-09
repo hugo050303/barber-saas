@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import toast from 'react-hot-toast'; // ¡Usamos las notificaciones nuevas!
+import toast from 'react-hot-toast';
 
 const ReservaPublica = () => {
   const [paso, setPaso] = useState(1);
@@ -14,7 +14,7 @@ const ReservaPublica = () => {
     fecha: '',
     hora: '',
     cliente: '',
-    telefono: ''
+    telefono: '' // Iniciamos vacío
   });
 
   useEffect(() => {
@@ -29,8 +29,13 @@ const ReservaPublica = () => {
   }
 
   const agendar = async () => {
-    if(!seleccion.cliente || !seleccion.telefono || !seleccion.fecha || !seleccion.hora) {
-        toast.error("Por favor completa todos los datos");
+    // Validación más estricta: Teléfono debe tener 10 dígitos exactos
+    if(!seleccion.cliente || !seleccion.fecha || !seleccion.hora) {
+        toast.error("Faltan datos por llenar");
+        return;
+    }
+    if(seleccion.telefono.length !== 10) {
+        toast.error("El teléfono debe tener 10 dígitos exactos");
         return;
     }
 
@@ -47,10 +52,14 @@ const ReservaPublica = () => {
     }]);
 
     if(error) {
-        toast.error("Hubo un error al agendar. Intenta de nuevo.");
+        toast.error("Error al agendar: " + error.message);
     } else {
-        // 2. Intentar guardar cliente en CRM (sin romper si falla)
-        await supabase.from('clientes').insert([{ nombre: seleccion.cliente, telefono: seleccion.telefono }]).select();
+        // 2. Intentar guardar cliente en CRM (Auto-registro)
+        await supabase.from('clientes').insert([{ 
+            nombre: seleccion.cliente, 
+            telefono: seleccion.telefono,
+            notas: 'Registrado desde Web Pública'
+        }]).select();
         
         setPaso(4); // Pantalla de éxito
         toast.success("¡Tu cita ha sido agendada!");
@@ -70,7 +79,7 @@ const ReservaPublica = () => {
         <div className="p-6">
             {/* PASO 1: SELECCIÓN */}
             {paso === 1 && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-fade-in">
                     <h2 className="font-bold text-gray-700 text-lg">1. ¿Con quién y qué servicio?</h2>
                     
                     <div>
@@ -79,7 +88,7 @@ const ReservaPublica = () => {
                             {barberos.map(b => (
                                 <div key={b.id} 
                                     onClick={() => setSeleccion({...seleccion, barbero: b})}
-                                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${seleccion.barbero?.id === b.id ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-indigo-200'}`}>
+                                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${seleccion.barbero?.id === b.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-gray-100 hover:border-indigo-200'}`}>
                                     <div className="font-bold text-slate-800">{b.nombre}</div>
                                 </div>
                             ))}
@@ -88,7 +97,7 @@ const ReservaPublica = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Elige Servicio</label>
-                        <select className="w-full border rounded-lg p-3 bg-gray-50"
+                        <select className="w-full border rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
                             onChange={e => setSeleccion({...seleccion, servicio: JSON.parse(e.target.value)})}>
                             <option value="">Selecciona...</option>
                             {servicios.map(s => (
@@ -98,7 +107,7 @@ const ReservaPublica = () => {
                     </div>
 
                     <button disabled={!seleccion.barbero || !seleccion.servicio} onClick={() => setPaso(2)}
-                        className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold disabled:bg-gray-300 mt-4">
+                        className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold disabled:bg-gray-300 transition-all mt-4">
                         Siguiente →
                     </button>
                 </div>
@@ -106,40 +115,68 @@ const ReservaPublica = () => {
 
             {/* PASO 2: FECHA Y HORA */}
             {paso === 2 && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-fade-in">
                     <h2 className="font-bold text-gray-700 text-lg">2. ¿Cuándo te esperamos?</h2>
-                    <input type="date" className="w-full border rounded-lg p-3" 
-                        onChange={e => setSeleccion({...seleccion, fecha: e.target.value})} />
-                    <input type="time" className="w-full border rounded-lg p-3" 
-                        onChange={e => setSeleccion({...seleccion, hora: e.target.value})} />
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
+                        <input type="date" className="w-full border rounded-lg p-3 outline-none focus:border-indigo-500" 
+                            onChange={e => setSeleccion({...seleccion, fecha: e.target.value})} />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label>
+                        <input type="time" className="w-full border rounded-lg p-3 outline-none focus:border-indigo-500" 
+                            onChange={e => setSeleccion({...seleccion, hora: e.target.value})} />
+                    </div>
                     
                     <div className="flex gap-3 mt-4">
                         <button onClick={() => setPaso(1)} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">Atrás</button>
                         <button disabled={!seleccion.fecha || !seleccion.hora} onClick={() => setPaso(3)}
-                            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold disabled:bg-gray-300">
+                            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold disabled:bg-gray-300 transition-all">
                             Siguiente →
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* PASO 3: TUS DATOS */}
+            {/* PASO 3: TUS DATOS (AQUÍ ESTÁ LA CORRECCIÓN) */}
             {paso === 3 && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-fade-in">
                     <h2 className="font-bold text-gray-700 text-lg">3. Tus Datos</h2>
-                    <input type="text" placeholder="Tu Nombre" className="w-full border rounded-lg p-3"
-                        onChange={e => setSeleccion({...seleccion, cliente: e.target.value})} />
-                    <input type="tel" placeholder="Tu Teléfono" className="w-full border rounded-lg p-3"
-                        onChange={e => setSeleccion({...seleccion, telefono: e.target.value})} />
                     
-                    <div className="bg-yellow-50 p-4 rounded-lg text-sm text-yellow-800 mt-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tu Nombre</label>
+                        <input type="text" placeholder="Ej. Juan Pérez" 
+                            className="w-full border rounded-lg p-3 outline-none focus:border-indigo-500"
+                            onChange={e => setSeleccion({...seleccion, cliente: e.target.value})} />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tu Teléfono (WhatsApp)</label>
+                        <input 
+                            type="tel" 
+                            maxLength="10" // Límite HTML
+                            placeholder="10 dígitos (Ej: 921...)" 
+                            className="w-full border rounded-lg p-3 outline-none focus:border-indigo-500 tracking-wider font-medium"
+                            value={seleccion.telefono}
+                            onChange={e => {
+                                // Lógica JS: Solo números
+                                const soloNumeros = e.target.value.replace(/[^0-9]/g, '');
+                                setSeleccion({...seleccion, telefono: soloNumeros});
+                            }} 
+                        />
+                        <p className="text-xs text-gray-400 mt-1 text-right">{seleccion.telefono.length}/10</p>
+                    </div>
+                    
+                    <div className="bg-yellow-50 p-4 rounded-lg text-sm text-yellow-800 mt-4 border border-yellow-100">
                         <p><strong>Resumen:</strong> {seleccion.servicio?.nombre} con {seleccion.barbero?.nombre}</p>
-                        <p>El {seleccion.fecha} a las {seleccion.hora}</p>
+                        <p>El <strong>{seleccion.fecha}</strong> a las <strong>{seleccion.hora}</strong></p>
                     </div>
 
                     <div className="flex gap-3 mt-4">
                         <button onClick={() => setPaso(2)} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">Atrás</button>
-                        <button onClick={agendar} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">
+                        <button onClick={agendar} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all">
                             ¡Confirmar Cita!
                         </button>
                     </div>
@@ -148,11 +185,13 @@ const ReservaPublica = () => {
 
             {/* PASO 4: ÉXITO */}
             {paso === 4 && (
-                <div className="text-center py-10">
-                    <div className="text-6xl mb-4">✅</div>
+                <div className="text-center py-10 animate-bounce-in">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-5xl">✅</span>
+                    </div>
                     <h2 className="text-2xl font-bold text-slate-800">¡Cita Confirmada!</h2>
-                    <p className="text-gray-500 mt-2">Te esperamos en la barbería.</p>
-                    <button onClick={() => window.location.reload()} className="mt-8 text-indigo-600 font-bold underline">
+                    <p className="text-gray-500 mt-2">Ya te tenemos agendado.</p>
+                    <button onClick={() => window.location.reload()} className="mt-8 text-indigo-600 font-bold hover:underline">
                         Agendar otra cita
                     </button>
                 </div>

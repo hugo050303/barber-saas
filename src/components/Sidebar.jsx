@@ -104,6 +104,12 @@ const Sidebar = () => {
               </Link>
             </li>
 
+            <li>
+              <Link to="/nomina" onClick={handleLinkClick} className="block p-3 rounded hover:bg-slate-700 transition-colors flex items-center gap-2">
+              <span>💰</span> Nómina
+              </Link>
+            </li>
+
             <li className="mt-8 border-t border-slate-700 pt-2">
               <Link to="/configuracion" onClick={handleLinkClick} className="block p-3 rounded hover:bg-slate-700 transition-colors flex items-center gap-2 text-slate-300">
                 <span>⚙️</span> Configuración

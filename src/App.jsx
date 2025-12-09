@@ -14,6 +14,7 @@ import Equipo from './pages/Equipo';
 import Clientes from './pages/Clientes';
 import Gastos from './pages/Gastos';
 import Configuracion from './pages/Configuracion';
+import Nomina from './pages/Nomina';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -70,6 +71,7 @@ function App() {
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/gastos" element={<Gastos />} />
             <Route path="/configuracion" element={<Configuracion />} />
+            <Route path="/nomina" element={<Nomina />} />
             
             {/* Redireccionar cualquier ruta desconocida a la agenda */}
             <Route path="*" element={<Navigate to="/" replace />} />

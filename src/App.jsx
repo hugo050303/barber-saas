@@ -1,32 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabaseClient'; // Importamos Supabase
+import { supabase } from './supabaseClient';
 
-// Páginas
+// Importación de Páginas
 import Sidebar from './components/Sidebar';
-import Agenda from './pages/Agenda';
-import Servicios from './pages/Servicios';
-import Equipo from './pages/Equipo';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Login from './pages/Login'; 
-import Configuracion from './pages/Configuracion';
-import Inventario from './pages/Inventario';
+import Agenda from './pages/Agenda';
 import Venta from './pages/Venta';
-import Gastos from './pages/Gastos';
+import Servicios from './pages/Servicios';
+import Inventario from './pages/Inventario';
+import Equipo from './pages/Equipo';
 import Clientes from './pages/Clientes';
+import Gastos from './pages/Gastos';
+import Configuracion from './pages/Configuracion';
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Revisar si ya había una sesión guardada al abrir la app
+    // 1. Revisar sesión al iniciar
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
-    // 2. Escuchar cambios (login o logout) en tiempo real
+    // 2. Escuchar cambios (login/logout)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -36,33 +36,43 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Mientras Supabase revisa si estás logueado, mostramos cargando...
   if (loading) {
-    return <div className="h-screen flex items-center justify-center bg-gray-100">Cargando sistema...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-slate-500 animate-pulse">Cargando sistema...</p>
+      </div>
+    );
   }
 
-  // SI NO HAY SESIÓN: Mostramos SOLO el Login
+  // SI NO HAY SESIÓN -> LOGIN
   if (!session) {
     return <Login />;
   }
 
-  // SI HAY SESIÓN: Mostramos la App completa con el Menú
+  // SI HAY SESIÓN -> SISTEMA COMPLETO
   return (
     <BrowserRouter>
       <div className="flex min-h-screen bg-gray-100">
-        <Sidebar /> {/* El menú solo sale si estás logueado */}
-        <div className="flex-1 ml-64"> 
+        <Sidebar /> {/* Menú inteligente (fijo en PC, oculto en Móvil) */}
+        
+        {/* CONTENEDOR PRINCIPAL
+            - md:ml-64 : En pantallas medianas/grandes (PC) deja 256px de margen para el menú.
+            - ml-0 : En celulares NO deja margen (usa toda la pantalla).
+        */}
+        <div className="flex-1 md:ml-64 transition-all duration-300">
           <Routes>
             <Route path="/" element={<Agenda />} />
-            <Route path="/servicios" element={<Servicios />} />
-            <Route path="/barberos" element={<Equipo />} />
             <Route path="/panel" element={<Dashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-            <Route path="/configuracion" element={<Configuracion />} />
-            <Route path="/inventario" element={<Inventario />} />
             <Route path="/venta" element={<Venta />} />
-            <Route path="/gastos" element={<Gastos />} />
+            <Route path="/servicios" element={<Servicios />} />
+            <Route path="/inventario" element={<Inventario />} />
+            <Route path="/barberos" element={<Equipo />} />
             <Route path="/clientes" element={<Clientes />} />
+            <Route path="/gastos" element={<Gastos />} />
+            <Route path="/configuracion" element={<Configuracion />} />
+            
+            {/* Redireccionar cualquier ruta desconocida a la agenda */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>

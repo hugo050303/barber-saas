@@ -5,10 +5,29 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  // false = iniciar sesión, true = crear cuenta
+  const [registro, setRegistro] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    if (registro) {
+      // Crear cuenta. Para ver los datos, el administrador debe autorizarla
+      // agregándola a la tabla "personal" (ver db/permisos.sql).
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { displayName: email.split('@')[0] } },
+      });
+      if (error) {
+        alert('Error al crear la cuenta: ' + error.message);
+      } else {
+        alert('Cuenta creada. Si no ves información, pide al administrador que autorice tu cuenta.');
+      }
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -44,8 +63,8 @@ const Login = () => {
                 <div className="inline-block p-4 rounded-full bg-indigo-50 mb-4">
                     <span className="text-4xl">💈</span>
                 </div>
-                <h1 className="text-3xl font-extrabold text-slate-900">Bienvenido de nuevo</h1>
-                <p className="text-slate-500 mt-2">Ingresa tus credenciales para acceder al panel.</p>
+                <h1 className="text-3xl font-extrabold text-slate-900">{registro ? 'Crear cuenta' : 'Bienvenido de nuevo'}</h1>
+                <p className="text-slate-500 mt-2">{registro ? 'Elige tu correo y una contraseña (mínimo 8 caracteres).' : 'Ingresa tus credenciales para acceder al panel.'}</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
@@ -69,6 +88,7 @@ const Login = () => {
                     <input
                         type="password"
                         required
+                        minLength={8}
                         // AQUÍ TAMBIÉN AGREGAMOS text-slate-900
                         className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 focus:bg-white text-slate-900"
                         placeholder="••••••••"
@@ -82,12 +102,15 @@ const Login = () => {
                     disabled={loading}
                     className="w-full bg-slate-900 text-white py-3.5 rounded-lg font-bold hover:bg-slate-800 transition-transform active:scale-[0.98] shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                    {loading ? 'Verificando...' : 'Iniciar Sesión →'}
+                    {loading ? 'Verificando...' : registro ? 'Crear cuenta →' : 'Iniciar Sesión →'}
                 </button>
             </form>
 
             <p className="mt-8 text-center text-sm text-gray-500">
-                ¿No tienes cuenta? <span className="text-indigo-600 font-bold cursor-pointer hover:underline">Contacta a soporte</span>
+                {registro ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
+                <button type="button" onClick={() => setRegistro(!registro)} className="text-indigo-600 font-bold hover:underline">
+                    {registro ? 'Inicia sesión' : 'Crear cuenta'}
+                </button>
             </p>
         </div>
       </div>

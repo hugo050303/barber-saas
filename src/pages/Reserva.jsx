@@ -3,11 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MapPin, MessageCircle, Clock, Check } from 'lucide-react';
 import { db, usarNegocio } from '../db';
-import { negocioPorSlug, ocupadosDelDia, crearCita, esPro } from '../lib/negocio';
+import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan } from '../lib/negocio';
 import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS } from '../lib/horario';
 import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
-import { MARCA, LIMITE_BARBEROS_GRATIS } from '../config';
+import { MARCA } from '../config';
 
 function Paso({ n, titulo, activo, hecho, resumen, onEditar, children }) {
   return (
@@ -70,10 +70,8 @@ export default function Reserva() {
       setNegocio(n);
       if (!n) return;
       const [b, s] = await Promise.all([db.from('barberos').select('*').order('nombre'), db.from('servicios').select('*').order('nombre')]);
-      let activos = (b.data || []).filter((x) => x.activo !== false);
-      // En plan gratis solo se reserva con el barbero principal
-      if (!esPro(n)) activos = (activos.some((x) => x.id === 'principal') ? activos.filter((x) => x.id === 'principal') : activos).slice(0, LIMITE_BARBEROS_GRATIS);
-      setBarberos(activos);
+      // Solo los barberos activos que entran en el plan de la barbería
+      setBarberos(barberosDelPlan(n, (b.data || []).filter((x) => x.activo !== false)));
       setServicios(s.data || []);
     })();
   }, [slug]);
@@ -123,11 +121,16 @@ export default function Reserva() {
   }
 
   const hoy = horarioDelDia(horario, hoyYmd());
+  const conFotos = esPro(negocio);
+  const portada = conFotos && negocio.portada;
   const encabezado = (
-    <header className="bg-ink text-paper">
-      <div className="poste h-1.5" />
-      <div className="mx-auto max-w-xl px-5 py-7">
-        <p className="eyebrow text-paper/50">Reserva tu cita</p>
+    <header className="relative overflow-hidden bg-ink text-paper">
+      {portada && <img src={portada} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />}
+      {portada && <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/20" />}
+      <div className="poste relative h-1.5" />
+      <div className={`relative mx-auto max-w-xl px-5 ${portada ? 'pb-7 pt-24' : 'py-7'}`}>
+        {conFotos && negocio.logo && <img src={negocio.logo} alt={`Logo de ${negocio.nombre}`} className="mb-4 h-16 w-16 rounded-full border-2 border-paper/80 object-cover" />}
+        <p className="eyebrow text-paper/60">Reserva tu cita</p>
         <h1 className="display mt-2 text-5xl">{negocio.nombre}</h1>
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-paper/70">
           {negocio.direccion && <a href={`https://maps.google.com/?q=${encodeURIComponent(negocio.direccion)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-paper"><MapPin size={14} />{negocio.direccion}</a>}
@@ -173,6 +176,16 @@ export default function Reserva() {
     <div className="min-h-screen">
       {encabezado}
       <main className="mx-auto max-w-xl px-5 pb-6 pt-2">
+        {conFotos && negocio.galeria?.length > 0 && !sinCatalogo && paso === 1 && (
+          <div className="-mx-5 mb-2 mt-4">
+            <p className="eyebrow mb-2 px-5">Nuestros trabajos</p>
+            <div className="flex snap-x gap-2 overflow-x-auto px-5 pb-2">
+              {negocio.galeria.map((f) => (
+                <img key={f.slot} src={f.url} alt="Trabajo de la barbería" loading="lazy" className="h-32 w-32 shrink-0 snap-start rounded object-cover" />
+              ))}
+            </div>
+          </div>
+        )}
         {sinCatalogo ? (
           <p className="py-12 text-center text-ink-2">Esta barbería todavía está preparando su agenda en línea. Mientras tanto, escríbeles por WhatsApp.</p>
         ) : (
@@ -198,9 +211,12 @@ export default function Reserva() {
               <div className="grid grid-cols-2 gap-2">
                 {barberos.map((b) => (
                   <button key={b.id} onClick={() => { setSel({ ...sel, barbero: b, dia: null, hora: null }); setPaso(3); }}
-                    className={`rounded border px-4 py-3.5 text-left transition ${sel.barbero?.id === b.id ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
-                    <span className="block font-semibold">{b.nombre}</span>
-                    {b.especialidad && <span className={`text-sm ${sel.barbero?.id === b.id ? 'text-paper/70' : 'text-ink-3'}`}>{b.especialidad}</span>}
+                    className={`flex items-center gap-3 rounded border px-3 py-3 text-left transition ${sel.barbero?.id === b.id ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
+                    {conFotos && b.foto && <img src={b.foto} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />}
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{b.nombre}</span>
+                      {b.especialidad && <span className={`block truncate text-sm ${sel.barbero?.id === b.id ? 'text-paper/70' : 'text-ink-3'}`}>{b.especialidad}</span>}
+                    </span>
                   </button>
                 ))}
               </div>

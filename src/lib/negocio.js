@@ -6,6 +6,7 @@ import { firestore } from '../firebase';
 import { ruta } from '../db';
 import { slugify, soloDigitos, inicioDia, finDia, normalizar, ZONA_DEFAULT } from './formato';
 import { HORARIO_BASE } from './horario';
+import { SLOTS_BARBEROS } from '../config';
 
 // ---------- Registro de barberías ----------
 // El id del negocio es el uid del dueño: así las reglas de seguridad saben quién es el dueño
@@ -72,10 +73,31 @@ export async function negocioPorSlug(slug) {
   return n.exists() ? { id: n.id, ...n.data() } : null;
 }
 
+// ¿Tiene un plan de pago (Pro o Plus) vigente?
 export function esPro(negocio) {
-  if (!negocio || negocio.plan !== 'pro' || !negocio.proHasta) return false;
+  if (!negocio || !['pro', 'plus'].includes(negocio.plan) || !negocio.proHasta) return false;
   const hasta = negocio.proHasta.toDate ? negocio.proHasta.toDate() : new Date(negocio.proHasta);
   return hasta > new Date();
+}
+
+// Plan que aplica hoy: 'gratis' | 'pro' | 'plus' (si venció, regresa a gratis)
+export const planVigente = (negocio) => (esPro(negocio) ? negocio.plan : 'gratis');
+
+// Barberos que pueden recibir citas según el plan (los demás se conservan, pero no aparecen)
+export function barberosDelPlan(negocio, barberos) {
+  const plan = planVigente(negocio);
+  if (plan === 'plus') return barberos;
+  const permitidos = plan === 'pro' ? SLOTS_BARBEROS : SLOTS_BARBEROS.slice(0, 1);
+  return barberos.filter((b) => permitidos.includes(b.id));
+}
+
+// Id para un barbero nuevo: en Gratis/Pro se usan lugares fijos (principal, b2, b3); en Plus, id automático.
+// Regresa null si ya no hay lugar en el plan.
+export function idParaNuevoBarbero(negocio, barberos) {
+  const plan = planVigente(negocio);
+  if (plan === 'plus') return undefined;
+  const permitidos = plan === 'pro' ? SLOTS_BARBEROS : SLOTS_BARBEROS.slice(0, 1);
+  return permitidos.find((id) => !barberos.some((b) => b.id === id)) || null;
 }
 
 // ---------- Citas ----------

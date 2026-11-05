@@ -1,5 +1,5 @@
 // Pruebas de las reglas de seguridad y de la lógica de negocio contra el emulador de Firebase.
-// Ejecutar: npx firebase-tools emulators:exec --only firestore,auth --project barberia-659a5 "npx vite-node tests/reglas.mjs"
+// Ejecutar: npx firebase-tools emulators:exec --only firestore,auth,storage --project barberia-659a5 "npx vite-node tests/reglas.mjs"
 import {
   connectAuthEmulator, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   GoogleAuthProvider, signInWithCredential,
@@ -7,10 +7,15 @@ import {
 import {
   connectFirestoreEmulator, doc, getDoc, getDocs, collection, updateDoc, setDoc, Timestamp, addDoc, writeBatch, deleteDoc,
 } from 'firebase/firestore';
-import { auth, firestore } from '../src/firebase.js';
+import { connectStorageEmulator, getStorage, ref, uploadBytes } from 'firebase/storage';
+import { auth, firestore, app } from '../src/firebase.js';
 
 connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 connectFirestoreEmulator(firestore, '127.0.0.1', 8085);
+const storage = getStorage(app);
+connectStorageEmulator(storage, '127.0.0.1', 9199);
+const imagen = (kb = 50, tipo = 'image/webp') => [new Uint8Array(kb * 1024), { contentType: tipo }];
+const sube = (ruta, kb, tipo) => uploadBytes(ref(storage, ruta), ...imagen(kb, tipo));
 console.error = () => {}; // silenciar los errores esperados de permisos
 const { db, usarNegocio } = await import('../src/db.js');
 const N = await import('../src/lib/negocio.js');
@@ -53,6 +58,8 @@ await db.from('servicios').insert([{ nombre: 'Corte', precio: '150', duracion_mi
 const luis = { id: 'principal', nombre: 'Luis' };
 const [corte] = (await db.from('servicios').select('*')).data;
 ok((await db.from('inventario').insert([{ nombre: 'Cera', precio_venta: 80, stock: 3 }])).error, 'gratis: NO usa inventario');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/logo`))), 'gratis: NO sube fotos');
+ok(!(await intenta(() => updateDoc(doc(firestore, 'negocios', ua.uid), { fundador: true }))), 'A NO se pone precio fundador');
 
 const inicio1 = horariosLibres({ ymd: dia, horario: negA.horario, duracion: 45, ocupados: [], barbero: luis })[2];
 await N.crearCita({ cliente: 'Juan', telefono: '5550001111', inicio: inicio1, barbero: luis, servicio: corte, origen: 'panel' });
@@ -70,6 +77,7 @@ ok((await db.from('barberos').insert([{ nombre: 'Intruso' }])).error, 'B NO agre
 ok(!(await intenta(() => updateDoc(doc(firestore, 'negocios', ua.uid), { nombre: 'Hackeado' }))), 'B NO edita negocio de A');
 ok(!(await intenta(() => getDoc(doc(firestore, 'usuarios', ua.uid)))), 'B NO ve el correo de A');
 ok(!(await intenta(() => getDocs(collection(firestore, 'negocios')))), 'B NO lista barberías');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/logo`))), 'B NO sube fotos a la carpeta de A');
 await salir();
 
 // ---- Google: C entra con Google (3ª barbería, llega al tope) ----
@@ -120,7 +128,20 @@ await salir();
 // ---- A con Pro ----
 await signInWithEmailAndPassword(auth, 'a@test.com', 'secreto123');
 usarNegocio(ua.uid);
-ok(await intenta(() => addDoc(collection(firestore, `negocios/${ua.uid}/barberos`), { nombre: 'Memo' })), 'Pro: agrega más barberos');
+ok(await intenta(() => setDoc(doc(firestore, `negocios/${ua.uid}/barberos/b2`), { nombre: 'Memo' })), 'Pro: agrega 2º barbero');
+ok(await intenta(() => setDoc(doc(firestore, `negocios/${ua.uid}/barberos/b3`), { nombre: 'Toño' })), 'Pro: agrega 3er barbero');
+ok(!(await intenta(() => setDoc(doc(firestore, `negocios/${ua.uid}/barberos/b4`), { nombre: 'Extra' }))), 'Pro: NO pasa de 3 barberos');
+ok(!(await intenta(() => addDoc(collection(firestore, `negocios/${ua.uid}/barberos`), { nombre: 'Extra' }))), 'Pro: NO crea barberos con id libre');
+// Fotos con plan de pago
+ok(await intenta(() => sube(`negocios/${ua.uid}/logo`)), 'Pro: sube logo');
+ok(await intenta(() => sube(`negocios/${ua.uid}/galeria/11`, 80, 'image/jpeg')), 'Pro: sube foto de galería (lugar 11)');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/galeria/12`))), 'Pro: NO pasa de 12 fotos');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/otra-cosa`))), 'Pro: NO sube archivos con otro nombre');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/portada`, 2100))), 'Pro: NO sube fotos de más de 2 MB');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/portada`, 10, 'application/pdf'))), 'Pro: solo imágenes');
+ok(await intenta(() => sube(`negocios/${ua.uid}/barberos/b2`)), 'Pro: sube foto de barbero existente');
+ok(!(await intenta(() => sube(`negocios/${ua.uid}/barberos/fantasma`))), 'Pro: NO sube foto de barbero inexistente');
+ok(!(await intenta(() => updateDoc(doc(firestore, 'negocios', ua.uid), { galeria: Array.from({ length: 13 }, (_, i) => ({ slot: i, url: 'x' })) }))), 'Pro: galería máx. 12 en la ficha');
 ok(!(await db.from('inventario').insert([{ nombre: 'Cera', precio_venta: 80, stock: 3 }])).error, 'Pro: usa inventario');
 x = await db.from('ventas_productos').insert([{ total: 80, detalle_items: [] }]).select().single();
 ok(!x.error && x.data.id, 'Pro: registra venta');
@@ -143,6 +164,14 @@ ok((await N.ocupadosDelDia(dia)).length === 2, 'cancelar libera el horario');
 await N.eliminarCita(citaWeb);
 ok((await db.from('citas').select('*')).data.length === 2, 'eliminar cita');
 await deleteDoc(doc(firestore, `negocios/${ua.uid}/barberos/principal`));
+await salir();
+
+// ---- Admin sube a A a Plus y le da precio fundador ----
+await signInWithEmailAndPassword(auth, 'hugo050303@gmail.com', 'secreto123');
+ok(await intenta(() => updateDoc(doc(firestore, 'negocios', ua.uid), { plan: 'plus', fundador: true })), 'admin cambia a Plus y marca fundador');
+await salir();
+await signInWithEmailAndPassword(auth, 'a@test.com', 'secreto123');
+ok(await intenta(() => addDoc(collection(firestore, `negocios/${ua.uid}/barberos`), { nombre: 'Extra' })), 'Plus: barberos ilimitados');
 await salir();
 
 console.log(fails ? `\n${fails} FALLAS` : '\nTODO OK');

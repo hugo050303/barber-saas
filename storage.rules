@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Reglas de Cloud Storage (fotos). Solo barberías con plan de pago vigente suben fotos.
+// Los nombres de archivo son fijos (logo, portada, galeria/0..11, barberos/{id}), así cada barbería
+// tiene un máximo de archivos y el espacio usado no puede crecer sin control.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function dueno(uid) { return request.auth != null && request.auth.uid == uid; }
+    function dePago(uid) {
+      let n = firestore.get(/databases/(default)/documents/negocios/$(uid)).data;
+      return n.plan in ['pro', 'plus'] && n.proHasta > request.time;
+    }
+    function imagenValida() {
+      return request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(webp|jpeg|png)');
+    }
+
+    match /negocios/{uid}/{archivo} {
+      allow read: if true;
+      allow delete: if dueno(uid);
+      allow create, update: if dueno(uid) && archivo in ['logo', 'portada'] && imagenValida() && dePago(uid);
+    }
+    match /negocios/{uid}/galeria/{archivo} {
+      allow read: if true;
+      allow delete: if dueno(uid);
+      allow create, update: if dueno(uid) && archivo.matches('^([0-9]|1[01])$') && imagenValida() && dePago(uid);
+    }
+    match /negocios/{uid}/barberos/{barberoId} {
+      allow read: if true;
+      allow delete: if dueno(uid);
+      allow create, update: if dueno(uid) && imagenValida() && dePago(uid)
+        && firestore.exists(/databases/(default)/documents/negocios/$(uid)/barberos/$(barberoId));
+    }
+  }
+}

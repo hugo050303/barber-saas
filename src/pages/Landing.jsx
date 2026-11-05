@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { Check, ArrowRight, Link2, CalendarDays, Calculator, Wallet, MessageCircle } from 'lucide-react';
 import { Logo } from '../components/ui';
 import { useSesion } from '../lib/sesion';
-import { MARCA, PRECIO_PRO } from '../config';
+import { useEffect, useState } from 'react';
+import { MARCA, PLANES, FUNDADOR, MAX_FOTOS_GALERIA } from '../config';
+import { configSistema } from '../lib/negocio';
 
 const FUNCIONES = [
   {
@@ -23,13 +25,15 @@ const FUNCIONES = [
   },
 ];
 
-const GRATIS = ['Agenda del día', 'Página de reservas con tu link', 'Directorio de clientes', 'Servicios y precios', '1 barbero'];
-const PRO = ['Todo lo del plan Gratis', 'Barberos ilimitados', 'Caja con ticket impreso', 'Inventario de productos', 'Gastos y corte del día', 'Nómina y comisiones', 'Reportes del mes'];
+const GRATIS = ['Agenda y reservas por link', 'Horario, comida y días cerrados', 'Directorio de clientes', 'Servicios y precios', '1 barbero'];
+const PRO = ['Todo lo del plan Gratis', 'Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos de tus trabajos`, `Tu página sin la marca de ${MARCA}`];
+const PLUS = ['Todo lo del plan Pro', 'Barberos ilimitados', 'Fotos de cada barbero', 'Para barberías con equipo grande'];
 
 const FAQ = [
   ['¿Tengo que instalar algo?', 'No. Funciona en el navegador del celular, la tablet o la compu. Entras con tu correo y listo.'],
   ['¿Mis clientes necesitan crear una cuenta?', 'No. Abren tu link, eligen su hora y dejan su nombre y WhatsApp. Tú ves la cita al momento en tu agenda.'],
-  ['¿Cómo pago el plan Pro?', 'Desde tu panel, en "Pasar a Pro". Nos mandas mensaje, pagas por transferencia o depósito y activamos tu mes en cuanto se confirma.'],
+  ['¿Cómo pago mi plan?', 'Desde tu panel, en "Pasar a Pro". Nos mandas mensaje, pagas por transferencia o depósito y activamos tu plan en cuanto se confirma. Si pagas el año completo, te regalamos 2 meses.'],
+  ['¿Qué es el precio fundador?', `Las primeras ${FUNDADOR.lugares} barberías que se suscriban al plan Pro pagan $${FUNDADOR.precio} al mes en lugar de $${PLANES.pro.mensual}, y lo conservan mientras sigan suscritas.`],
   ['¿Qué pasa si un mes no pago?', 'Tu cuenta regresa al plan Gratis. Tu agenda, tus clientes y tu historial se quedan donde están; cuando renuevas, todo vuelve a funcionar.'],
   ['¿Quién puede ver mi información?', 'Solo tú. Cada barbería tiene su espacio privado y la página pública de reservas no muestra nombres ni teléfonos de tus clientes.'],
 ];
@@ -65,6 +69,8 @@ function Maqueta() {
 
 export default function Landing() {
   const { user } = useSesion();
+  const [fundadoresQuedan, setFundadoresQuedan] = useState(null);
+  useEffect(() => { configSistema().then((c) => setFundadoresQuedan(Math.max(0, FUNDADOR.lugares - (c.fundadoresUsados || 0)))); }, []);
   return (
     <div className="bg-paper">
       <div className="poste h-1.5" />
@@ -141,21 +147,34 @@ export default function Landing() {
       <section id="precios" className="bg-ink text-paper">
         <div className="mx-auto max-w-6xl px-4 py-20 md:px-8">
           <h2 className="display text-5xl md:text-6xl">Precios claros</h2>
-          <p className="mt-3 max-w-xl text-paper/70">Empieza gratis y pasa a Pro cuando tengas equipo o quieras llevar la caja. Pagas mes a mes, sin plazos forzosos.</p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <div className="rounded border border-paper/15 p-7">
+          <p className="mt-3 max-w-xl text-paper/70">Empieza gratis y sube de plan cuando tengas equipo o quieras llevar la caja. Pagas mes a mes, sin plazos forzosos, o un año y te regalamos 2 meses.</p>
+          {fundadoresQuedan > 0 && (
+            <div className="mt-8 flex flex-col gap-1 rounded border border-rojo/60 bg-rojo/15 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p><b>Precio fundador:</b> Pro a <b>${FUNDADOR.precio}/mes de por vida</b> para las primeras {FUNDADOR.lugares} barberías.</p>
+              <p className="text-sm text-paper/70">Quedan {fundadoresQuedan} lugares</p>
+            </div>
+          )}
+          <div className="mt-6 grid gap-5 lg:grid-cols-3">
+            <div className="flex flex-col rounded border border-paper/15 p-7">
               <p className="eyebrow text-paper/60">Gratis</p>
               <p className="mt-3"><span className="display text-6xl">$0</span></p>
               <p className="mt-1 text-sm text-paper/60">Para el barbero que trabaja solo</p>
-              <ul className="mt-6 space-y-2.5">{GRATIS.map((f) => <li key={f} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-paper/60" />{f}</li>)}</ul>
+              <ul className="mt-6 flex-1 space-y-2.5">{GRATIS.map((f) => <li key={f} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-paper/60" />{f}</li>)}</ul>
               <Link to="/registro" className="btn mt-8 w-full border border-paper/30 text-paper hover:bg-paper/10">Crear cuenta gratis</Link>
             </div>
-            <div className="rounded bg-paper p-7 text-ink">
+            <div className="flex flex-col rounded bg-paper p-7 text-ink">
               <div className="flex items-center justify-between"><p className="eyebrow">Pro</p><span className="rounded-sm bg-rojo px-2 py-0.5 text-[11px] font-bold uppercase text-white">Recomendado</span></div>
-              <p className="mt-3"><span className="display text-6xl">${PRECIO_PRO}</span> <span className="text-ink-2">MXN al mes</span></p>
-              <p className="mt-1 text-sm text-ink-3">Para barberías con equipo y caja</p>
-              <ul className="mt-6 space-y-2.5">{PRO.map((f) => <li key={f} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-rojo" />{f}</li>)}</ul>
+              <p className="mt-3"><span className="display text-6xl">${PLANES.pro.mensual}</span> <span className="text-ink-2">MXN al mes</span></p>
+              <p className="mt-1 text-sm text-ink-3">o ${PLANES.pro.anual.toLocaleString('es-MX')} al año · para barberías con equipo y caja</p>
+              <ul className="mt-6 flex-1 space-y-2.5">{PRO.map((f) => <li key={f} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-rojo" />{f}</li>)}</ul>
               <Link to="/registro" className="btn-rojo mt-8 w-full">Empezar y pasar a Pro</Link>
+            </div>
+            <div className="flex flex-col rounded border border-paper/15 p-7">
+              <p className="eyebrow text-paper/60">Plus</p>
+              <p className="mt-3"><span className="display text-6xl">${PLANES.plus.mensual}</span> <span className="text-paper/60">MXN al mes</span></p>
+              <p className="mt-1 text-sm text-paper/60">o ${PLANES.plus.anual.toLocaleString('es-MX')} al año · para equipos grandes</p>
+              <ul className="mt-6 flex-1 space-y-2.5">{PLUS.map((f) => <li key={f} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-paper/60" />{f}</li>)}</ul>
+              <Link to="/registro" className="btn mt-8 w-full border border-paper/30 text-paper hover:bg-paper/10">Empezar y pasar a Plus</Link>
             </div>
           </div>
         </div>

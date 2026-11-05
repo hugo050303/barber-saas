@@ -5,10 +5,16 @@ import { PageHeader, Field, Badge } from '../components/ui';
 import { Catalogo, useColeccion } from '../components/Catalogo';
 import { useSesion } from '../lib/sesion';
 import { DIAS_CORTOS } from '../lib/horario';
+import { idParaNuevoBarbero } from '../lib/negocio';
+import { db, negocioId } from '../db';
+import { FotoUnica } from '../components/Fotos';
+import { PLANES, SLOTS_BARBEROS } from '../config';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
+const barberosPermitidos = (plan) => (plan === 'pro' ? SLOTS_BARBEROS : SLOTS_BARBEROS.slice(0, 1));
 
-function Formulario({ inicial, onGuardar }) {
+function Formulario({ inicial, onGuardar, conFotos }) {
+  const [foto, setFoto] = useState(inicial.foto || null);
   const [f, setF] = useState({
     nombre: inicial.nombre || '', especialidad: inicial.especialidad || '',
     porcentaje_comision: inicial.porcentaje_comision ?? 50, activo: inicial.activo !== false, diasLibres: inicial.diasLibres || [],
@@ -17,6 +23,11 @@ function Formulario({ inicial, onGuardar }) {
   const toggle = (d) => setF({ ...f, diasLibres: f.diasLibres.includes(d) ? f.diasLibres.filter((x) => x !== d) : [...f.diasLibres, d] });
   return (
     <form onSubmit={async (e) => { e.preventDefault(); setEnviando(true); await onGuardar({ ...f, nombre: f.nombre.trim(), porcentaje_comision: Number(f.porcentaje_comision) || 0 }); setEnviando(false); }} className="space-y-4">
+      {conFotos && inicial.id && (
+        <FotoUnica url={foto} ruta={`negocios/${negocioId()}/barberos/${inicial.id}`} etiqueta="Foto del barbero" forma="redonda"
+          opciones={{ ladoMax: 400, cuadrada: true }}
+          onCambio={async (url) => { await db.from('barberos').update({ foto: url }).eq('id', inicial.id); setFoto(url); }} />
+      )}
       <Field label="Nombre"><input className="input" required maxLength={40} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
       <Field label="Especialidad" hint="Opcional. Se ve en tu página de reservas."><input className="input" maxLength={40} placeholder="Fades, barba clásica…" value={f.especialidad} onChange={(e) => setF({ ...f, especialidad: e.target.value })} /></Field>
       <div>
@@ -37,19 +48,26 @@ function Formulario({ inicial, onGuardar }) {
 }
 
 export default function Equipo() {
-  const { pro } = useSesion();
+  const { pro, plan, negocio } = useSesion();
   const [filas, recargar] = useColeccion('barberos');
-  // Plan gratis: un solo barbero, guardado como "principal" (las reglas de seguridad solo permiten ese)
-  const limite = !pro && filas && filas.some((b) => b.id === 'principal');
+  // Cada plan tiene lugares fijos para sus barberos (las reglas de seguridad solo permiten esos ids)
+  const idNuevo = filas ? idParaNuevoBarbero(negocio, filas) : undefined;
+  const limite = idNuevo === null;
+  const max = PLANES[plan].barberos;
   return (
     <>
-      <PageHeader titulo="Equipo" sub="Cada barbero tiene su columna en la agenda y aparece en tu página de reservas." />
-      <Catalogo tabla="barberos" titulo="barbero" textoAgregar="Agregar barbero" filas={filas} recargar={recargar} Formulario={Formulario}
-        puedeAgregar={!limite} idNuevo={pro ? undefined : 'principal'}
-        bloqueo={<Link to="/app/plan" className="btn-ghost"><Lock size={14} /> Más barberos con Pro</Link>}
+      <PageHeader titulo="Equipo" sub={`Cada barbero tiene su columna en la agenda y aparece en tu página de reservas. Tu plan ${PLANES[plan].nombre} incluye ${max === Infinity ? 'barberos ilimitados' : max === 1 ? '1 barbero' : `hasta ${max} barberos`}.`} />
+      <Catalogo tabla="barberos" titulo="barbero" textoAgregar="Agregar barbero" filas={filas} recargar={recargar} Formulario={Formulario} formProps={{ conFotos: pro }}
+        puedeAgregar={!limite} idNuevo={idNuevo || undefined}
+        bloqueo={<Link to="/app/plan" className="btn-ghost"><Lock size={14} /> {plan === 'gratis' ? 'Más barberos con Pro' : 'Barberos ilimitados con Plus'}</Link>}
         vacio={{ titulo: 'Agrega a tu primer barbero', texto: 'Si trabajas solo, agrégate a ti mismo.' }}
         columnas={[
-          { label: 'Nombre', render: (b) => <span className="font-semibold">{b.nombre} {b.activo === false && <Badge>Sin citas</Badge>}{!pro && b.id !== 'principal' && <Badge tono="ambar">Solo Pro</Badge>}</span> },
+          { label: 'Nombre', render: (b) => (
+            <span className="flex items-center gap-2.5 font-semibold">
+              {b.foto ? <img src={b.foto} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-paper text-sm text-ink-2">{b.nombre?.[0]}</span>}
+              {b.nombre} {b.activo === false && <Badge>Sin citas</Badge>}
+              {!barberosPermitidos(plan).includes(b.id) && plan !== 'plus' && <Badge tono="ambar">Fuera de tu plan</Badge>}
+            </span>) },
           { label: 'Descansa', render: (b) => <span className="text-ink-2">{b.diasLibres?.length ? ORDEN_DIAS.filter((d) => b.diasLibres.includes(d)).map((d) => DIAS_CORTOS[d]).join(', ') : '—'}</span> },
           { label: 'Comisión', className: 'text-right', render: (b) => `${b.porcentaje_comision ?? 50}%` },
         ]} />

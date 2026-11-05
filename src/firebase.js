@@ -10,6 +10,7 @@ const firebaseConfig = {
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'barberia-659a5.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'barberia-659a5',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:559406886947:web:a1cb80a177bdde1cd5c196',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'barberia-659a5.firebasestorage.app',
 };
 
 export const app = initializeApp(firebaseConfig);
@@ -17,7 +18,8 @@ export const auth = getAuth(app);
 export const firestore = getFirestore(app);
 
 // Desarrollo local contra los emuladores de Firebase: VITE_USAR_EMULADOR=1 npm run dev
-if (import.meta.env.VITE_USAR_EMULADOR === '1') {
+export const usarEmulador = import.meta.env.VITE_USAR_EMULADOR === '1';
+if (usarEmulador) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(firestore, '127.0.0.1', 8085);
 }

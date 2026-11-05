@@ -8,8 +8,10 @@ Hecho con React + Vite + Tailwind y **Firebase** (Firestore + Authentication). S
 ## Cómo funciona el negocio
 
 - Cualquier barbería se registra gratis en `/registro` y obtiene su link de reservas: `/r/<nombre-de-la-barberia>`.
-- **Plan Gratis:** agenda, reservas por link, clientes, servicios y 1 barbero.
-- **Plan Pro ($299 MXN/mes):** barberos ilimitados, caja, inventario, gastos, corte del día, nómina y reportes.
+- **Gratis:** agenda, reservas por link, clientes, servicios y 1 barbero.
+- **Pro ($299 MXN/mes o $2,990 al año):** hasta 3 barberos, caja, inventario, gastos, corte, nómina, reportes y fotos.
+- **Plus ($499 MXN/mes o $4,990 al año):** todo lo de Pro con barberos ilimitados y foto de cada barbero.
+- **Precio fundador:** las primeras 20 barberías pagan Pro a $199/mes de por vida (se marca en `/admin`).
 - El cobro es manual: el dueño te escribe desde "Pasar a Pro", te paga y tú le activas el mes en **`/admin`**
   (solo la cuenta configurada en `ADMIN_EMAIL` puede entrar).
 - Si el Pro vence, la cuenta regresa a Gratis sin perder datos.
@@ -38,18 +40,35 @@ Después, en Authentication → Configuración → **Dominios autorizados**, agr
 | Ajuste | Para qué |
 | --- | --- |
 | `MARCA` | Nombre del producto en toda la app |
-| `PRECIO_PRO` | Precio mensual que se muestra |
+| `PLANES` | Precios y barberos incluidos por plan (los límites también están en `firestore.rules`) |
+| `FUNDADOR` | Precio y lugares de lanzamiento |
 | `ADMIN_EMAIL` | Cuenta administradora (también está en `firestore.rules`: cámbiala en los dos lugares) |
 | `WHATSAPP_VENTAS` | Tu WhatsApp para que los dueños te pidan el plan Pro |
-| `LIMITE_BARBEROS_GRATIS` | Barberos permitidos en el plan gratis |
+| `MAX_FOTOS_GALERIA` | Fotos de trabajos por barbería |
+
+## Fotos (Cloud Storage)
+
+Las fotos necesitan el plan **Blaze** de Firebase (los primeros 5 GB no cuestan). Para activarlas:
+1. Firebase Console → Actualizar → **Blaze**, y en Google Cloud pon una alerta de presupuesto (por ejemplo $5 USD).
+2. Firebase Console → **Storage** → Comenzar (ubicación `us-central1`).
+3. Storage → **Reglas** → pega `storage.rules` → Publicar.
+
+Las fotos se comprimen en el celular (una foto de 1.5 MB queda en ~115 KB) y cada barbería tiene un máximo
+de archivos fijo (logo, portada, 12 de galería y una por barbero).
+
+## Hosting
+
+El plan gratis de Vercel (Hobby) **no permite uso comercial**. Al empezar a cobrar, pasa a Vercel Pro
+o publica en Cloudflare Pages (gratis, permite uso comercial): conecta el repositorio, comando `npm run build`,
+carpeta `dist`.
 
 ## Reglas de seguridad
 
 `firestore.rules` protege los datos: cada barbería solo ve lo suyo, el público solo ve barberos,
 servicios y horarios ocupados (sin nombres ni teléfonos), y solo el administrador cambia planes.
 
-**Cada vez que cambie `firestore.rules`, hay que publicarlo:** Firebase Console → Firestore Database →
-Reglas → pegar el archivo completo → Publicar.
+**Cada vez que cambien `firestore.rules` o `storage.rules`, hay que publicarlos:** Firebase Console →
+Firestore Database → Reglas (y Storage → Reglas) → pegar el archivo completo → Publicar.
 
 ## Estructura de datos (Firestore)
 
@@ -73,12 +92,12 @@ npm run dev                 # usa el proyecto real de Firebase
 Para trabajar sin tocar datos reales, con los emuladores de Firebase (requiere Java):
 
 ```bash
-npx firebase-tools emulators:start --only auth,firestore --project barberia-659a5
+npx firebase-tools emulators:start --only auth,firestore,storage --project barberia-659a5
 VITE_USAR_EMULADOR=1 npm run dev
 ```
 
 Pruebas de las reglas de seguridad:
 
 ```bash
-npx firebase-tools emulators:exec --only firestore,auth --project barberia-659a5 "npx vite-node tests/reglas.mjs"
+npx firebase-tools emulators:exec --only firestore,auth,storage --project barberia-659a5 "npx vite-node tests/reglas.mjs"
 ```

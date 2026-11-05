@@ -1,47 +1,70 @@
 import { Check, MessageCircle } from 'lucide-react';
 import { useSesion } from '../lib/sesion';
-import { fechaLarga, linkWhatsApp } from '../lib/formato';
+import { fechaLarga, linkWhatsApp, dinero } from '../lib/formato';
 import { PageHeader, Badge } from '../components/ui';
-import { PRECIO_PRO, WHATSAPP_VENTAS, MARCA } from '../config';
+import { PLANES, FUNDADOR, WHATSAPP_VENTAS, MARCA, MAX_FOTOS_GALERIA } from '../config';
 
-const PRO = ['Barberos ilimitados', 'Caja con ticket impreso', 'Inventario de productos', 'Gastos y corte del día', 'Nómina y comisiones', 'Reportes del mes', `Tu página de reservas sin la marca de ${MARCA}`];
+const INCLUYE = {
+  pro: ['Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos en tu página`, `Tu página sin la marca de ${MARCA}`],
+  plus: ['Todo lo del plan Pro', 'Barberos ilimitados', 'Fotos de cada barbero'],
+};
+
+function Tarjeta({ id, actual, fundador, user, negocio }) {
+  const p = PLANES[id];
+  const mensual = id === 'pro' && fundador ? FUNDADOR.precio : p.mensual;
+  const esActual = actual === id;
+  const mensaje = `Hola, quiero ${esActual ? 'renovar' : 'contratar'} el plan ${p.nombre} de ${MARCA} para "${negocio.nombre}" (${user.email}). ¿Cómo hago el pago?`;
+  return (
+    <div className={`card flex flex-col overflow-hidden ${id === 'pro' ? 'border-ink' : ''}`}>
+      {id === 'pro' && <div className="poste h-1.5" />}
+      <div className="flex flex-1 flex-col p-6">
+        <div className="flex items-center justify-between gap-2">
+          <p className="display text-4xl">{p.nombre}</p>
+          {esActual ? <Badge tono="verde">Tu plan</Badge> : id === 'pro' && fundador ? <Badge tono="rojo">Precio fundador</Badge> : null}
+        </div>
+        <p className="mt-3">
+          <span className="display text-5xl">{dinero(mensual).replace('.00', '')}</span> <span className="text-ink-2">MXN / mes</span>
+          {id === 'pro' && fundador && <span className="ml-2 text-ink-3 line-through">{dinero(p.mensual).replace('.00', '')}</span>}
+        </p>
+        {!(id === 'pro' && fundador) && <p className="mt-1 text-sm text-ink-3">o {dinero(p.anual).replace('.00', '')} al año (2 meses gratis)</p>}
+        <ul className="mt-5 flex-1 space-y-2">{INCLUYE[id].map((x) => <li key={x} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-rojo" />{x}</li>)}</ul>
+        {WHATSAPP_VENTAS
+          ? <a href={linkWhatsApp(WHATSAPP_VENTAS, mensaje)} target="_blank" rel="noreferrer" className={`${id === 'pro' ? 'btn-rojo' : 'btn-primary'} mt-6 w-full py-3`}><MessageCircle size={18} /> {esActual ? 'Renovar' : `Quiero ${p.nombre}`}</a>
+          : <p className="mt-6 text-sm text-ink-3">Muy pronto podrás solicitarlo desde aquí.</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function Plan() {
-  const { pro, negocio, user } = useSesion();
+  const { plan, negocio, user } = useSesion();
   const hasta = negocio.proHasta?.toDate?.();
-  const vencido = negocio.plan === 'pro' && !pro;
-  const mensaje = `Hola, quiero ${pro ? 'renovar' : 'activar'} el plan Pro de ${MARCA} para "${negocio.nombre}" (${user.email}). ¿Cómo hago el pago?`;
+  const vencido = ['pro', 'plus'].includes(negocio.plan) && plan === 'gratis';
 
   return (
     <>
       <PageHeader titulo="Tu plan" />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <div className="card p-6">
+      <div className="card mb-6 flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
           <p className="eyebrow">Plan actual</p>
-          <p className="display mt-2 text-5xl">{pro ? 'Pro' : 'Gratis'}</p>
-          {pro && hasta && <p className="mt-2 text-ink-2">Vigente hasta el <b className="text-ink">{fechaLarga(hasta)}</b>.</p>}
-          {vencido && <p className="mt-3"><Badge tono="rojo">Tu plan Pro venció</Badge></p>}
-          {vencido && <p className="mt-2 text-sm text-ink-2">Tus datos siguen guardados. Renueva para volver a usar Caja, Inventario y demás.</p>}
-          {!pro && !vencido && <p className="mt-2 text-ink-2">Agenda, reservas por link, clientes y servicios con 1 barbero.</p>}
+          <p className="display mt-1 text-4xl">{PLANES[plan].nombre}</p>
         </div>
+        <div className="text-sm text-ink-2 sm:text-right">
+          {plan !== 'gratis' && hasta && <p>Vigente hasta el <b className="text-ink">{fechaLarga(hasta)}</b></p>}
+          {vencido && <p><Badge tono="rojo">Tu plan venció</Badge> Tus datos siguen guardados; renueva para volver a usarlo todo.</p>}
+          {plan === 'gratis' && !vencido && <p>Agenda, reservas por link, clientes y servicios con 1 barbero.</p>}
+          {negocio.fundador && <p className="mt-1"><Badge tono="rojo">Precio fundador de por vida</Badge></p>}
+        </div>
+      </div>
 
-        <div className="card overflow-hidden">
-          <div className="poste h-1.5" />
-          <div className="p-6">
-            <div className="flex items-baseline justify-between">
-              <p className="display text-4xl">Pro</p>
-              <p><span className="display text-4xl">${PRECIO_PRO}</span> <span className="text-ink-2">MXN / mes</span></p>
-            </div>
-            <ul className="mt-5 space-y-2">{PRO.map((x) => <li key={x} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-rojo" />{x}</li>)}</ul>
-            <div className="mt-6 rounded bg-paper p-4 text-sm text-ink-2">
-              <p className="font-semibold text-ink">¿Cómo se paga?</p>
-              <p className="mt-1">Escríbenos, te pasamos los datos para transferencia o depósito y activamos tu mes en cuanto se confirme el pago. Sin contratos: si un mes no renuevas, regresas al plan Gratis sin perder nada.</p>
-            </div>
-            {WHATSAPP_VENTAS
-              ? <a href={linkWhatsApp(WHATSAPP_VENTAS, mensaje)} target="_blank" rel="noreferrer" className="btn-rojo mt-5 w-full py-3.5 text-base"><MessageCircle size={18} /> {pro ? 'Renovar por WhatsApp' : 'Quiero el plan Pro'}</a>
-              : <p className="mt-5 text-sm text-ink-3">Muy pronto podrás solicitarlo desde aquí.</p>}
-          </div>
-        </div>
+      <div className="grid gap-5 md:grid-cols-2">
+        <Tarjeta id="pro" actual={plan} fundador={negocio.fundador} user={user} negocio={negocio} />
+        <Tarjeta id="plus" actual={plan} fundador={false} user={user} negocio={negocio} />
+      </div>
+
+      <div className="mt-6 rounded bg-card p-5 text-sm text-ink-2">
+        <p className="font-semibold text-ink">¿Cómo se paga?</p>
+        <p className="mt-1">Escríbenos, te pasamos los datos para transferencia o depósito y activamos tu plan en cuanto se confirme el pago. Sin contratos: si un mes no renuevas, regresas al plan Gratis sin perder nada.</p>
       </div>
     </>
   );

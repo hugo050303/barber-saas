@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, firestore } from '../firebase';
 import { usarNegocio } from '../db';
-import { esPro } from './negocio';
+import { esPro, planVigente } from './negocio';
 import { usarZona } from './formato';
 import { ADMIN_EMAIL } from '../config';
 
@@ -41,7 +41,8 @@ export function SesionProvider({ children }) {
 
   const valor = {
     user, perfil, negocio, cargando,
-    pro: esPro(negocio),
+    pro: esPro(negocio),          // plan de pago vigente (Pro o Plus)
+    plan: planVigente(negocio),   // 'gratis' | 'pro' | 'plus'
     admin: !!user && user.email === ADMIN_EMAIL,
   };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

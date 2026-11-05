@@ -7,7 +7,8 @@ rules_version = '2';
 // - El público (página /r/{slug}) solo ve barberos, servicios, el perfil del negocio y los
 //   horarios ocupados (sin datos personales). Puede crear citas pendientes y su registro de cliente.
 // - El plan (gratis/pro) y su vigencia SOLO los cambia la cuenta administradora.
-// - Plan gratis: un solo barbero (documento "principal"). Funciones Pro solo con Pro vigente.
+// - Barberos por plan: Gratis 1 ("principal"), Pro 3 ("principal", "b2", "b3"), Plus ilimitados.
+// - Funciones de pago (caja, inventario, gastos, corte) solo con Pro o Plus vigente.
 // - Tope de barberías y registro abierto/cerrado: sistema/config (lo controla el admin).
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,9 +19,12 @@ service cloud.firestore {
     function negocio(nid) { return get(/databases/$(database)/documents/negocios/$(nid)).data; }
     function isPro(nid) {
       let n = negocio(nid);
-      return n.plan == 'pro' && n.proHasta is timestamp && n.proHasta > request.time;
+      return n.plan in ['pro', 'plus'] && n.proHasta is timestamp && n.proHasta > request.time;
     }
-    function camposProtegidos() { return ['plan', 'proHasta', 'ownerUid', 'slug', 'creado']; }
+    function camposProtegidos() { return ['plan', 'proHasta', 'ownerUid', 'slug', 'creado', 'fundador']; }
+    function puedeCrearBarbero(nid, id) {
+      return id == 'principal' || (isPro(nid) && (negocio(nid).plan == 'plus' || id in ['b2', 'b3']));
+    }
 
     // ---------- Sistema ----------
     function regPath() { return /databases/$(database)/documents/sistema/registro; }
@@ -61,13 +65,14 @@ service cloud.firestore {
         && getAfter(regPath()).data.total == totalAntes() + 1
         && registroPermitido(getAfter(regPath()).data.total);
       allow update: if isAdmin() || (isOwner(nid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposProtegidos()));
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposProtegidos())
+        && request.resource.data.get('galeria', []).size() <= 12);
       allow delete: if isAdmin();
 
-      // Barberos: en plan gratis solo existe "principal"; más barberos requieren Pro
+      // Barberos: el id limita cuántos hay según el plan
       match /barberos/{id} {
         allow read: if true;
-        allow create: if isOwner(nid) && (id == 'principal' || isPro(nid));
+        allow create: if isOwner(nid) && puedeCrearBarbero(nid, id);
         allow update, delete: if isOwner(nid);
       }
       match /servicios/{id} { allow read: if true; allow write: if isOwner(nid); }

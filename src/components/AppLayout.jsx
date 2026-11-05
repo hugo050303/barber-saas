@@ -3,7 +3,7 @@ import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import {
   CalendarDays, Users, Scissors, UserRound, ShoppingBag, Package, Receipt, Calculator,
-  Wallet, BarChart3, Settings, LogOut, Menu, X, Lock, Shield, ExternalLink,
+  Wallet, BarChart3, Settings, LogOut, Menu, X, Lock, Shield, ExternalLink, Crown,
 } from 'lucide-react';
 import { auth } from '../firebase';
 import { useSesion } from '../lib/sesion';
@@ -27,7 +27,7 @@ const NAV = [
 ];
 
 function Navegacion({ onNavegar }) {
-  const { negocio, pro, admin } = useSesion();
+  const { negocio, pro, plan, admin } = useSesion();
   const link = ({ isActive }) =>
     `flex items-center gap-3 rounded px-3 py-2 text-[15px] transition ${isActive ? 'bg-paper/10 text-paper' : 'text-paper/65 hover:text-paper'}`;
   return (
@@ -36,7 +36,7 @@ function Navegacion({ onNavegar }) {
         <Logo claro />
         <p className="mt-4 truncate text-sm font-semibold text-paper">{negocio?.nombre}</p>
         {pro
-          ? <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-sm bg-paper/10 py-0.5 pl-1 pr-2 text-[11px] font-semibold uppercase tracking-wide text-paper"><span className="poste h-3 w-3 rounded-sm" />Pro</span>
+          ? <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-sm bg-paper/10 py-0.5 pl-1 pr-2 text-[11px] font-semibold uppercase tracking-wide text-paper"><span className="poste h-3 w-3 rounded-sm" />{plan === 'plus' ? 'Plus' : 'Pro'}</span>
           : <p className="text-xs text-paper/50">Plan Gratis</p>}
       </div>
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
@@ -54,6 +54,7 @@ function Navegacion({ onNavegar }) {
         ))}
         <div className="mt-4 border-t border-paper/10 pt-4">
           <NavLink to="/app/configuracion" className={link} onClick={onNavegar}><Settings size={17} strokeWidth={1.75} /> Configuración</NavLink>
+          {pro && <NavLink to="/app/plan" className={link} onClick={onNavegar}><Crown size={17} strokeWidth={1.75} /> Tu plan</NavLink>}
           {admin && <NavLink to="/admin" className={link} onClick={onNavegar}><Shield size={17} strokeWidth={1.75} /> Administración</NavLink>}
           {negocio && (
             <a href={`/r/${negocio.slug}`} target="_blank" rel="noreferrer" className={link({})}>

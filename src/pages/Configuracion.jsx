@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import toast from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { X, MapPin, Copy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { auth, firestore } from '../firebase';
 import { useSesion } from '../lib/sesion';
 import { soloDigitos, aMinutos, ZONAS, ZONA_DEFAULT, usarZona, diaCorto, hoyYmd } from '../lib/formato';
 import { normalizarHorario, NOMBRES_DIA } from '../lib/horario';
 import { PageHeader, Field, Badge } from '../components/ui';
+import { FotoUnica, Galeria } from '../components/Fotos';
+import { MAX_FOTOS_GALERIA } from '../config';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
 
@@ -30,7 +33,9 @@ function Interruptor({ activo, onChange, label }) {
 }
 
 export default function Configuracion() {
-  const { negocio, user } = useSesion();
+  const { negocio, user, pro } = useSesion();
+  const guardarCampo = (campos) => updateDoc(doc(firestore, 'negocios', negocio.id), campos);
+  const urlReservas = `${window.location.origin}/r/${negocio.slug}`;
   const [f, setF] = useState({
     nombre: negocio.nombre || '', direccion: negocio.direccion || '', whatsapp: negocio.whatsapp || '',
     telefono: negocio.telefono || '', mensaje_ticket: negocio.mensaje_ticket || '', zona: negocio.zona || ZONA_DEFAULT,
@@ -158,6 +163,40 @@ export default function Configuracion() {
           <button className="btn-primary px-8 py-3" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</button>
         </div>
       </form>
+
+      <Seccion titulo="Fotos" texto="Tu logo, una portada y fotos de tus trabajos. Se ven en tu página de reservas.">
+        {!pro ? (
+          <div className="card p-5">
+            <Badge tono="tinta">Pro y Plus</Badge>
+            <p className="mt-2 text-sm text-ink-2">Con un plan de pago tu página de reservas luce tu logo, una foto de portada y hasta {MAX_FOTOS_GALERIA} fotos de tus cortes.</p>
+            <Link to="/app/plan" className="btn-rojo mt-4">Ver planes</Link>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div><p className="mb-2 text-sm font-semibold">Logo</p>
+              <FotoUnica url={negocio.logo} ruta={`negocios/${negocio.id}/logo`} etiqueta="Subir logo" forma="redonda"
+                opciones={{ ladoMax: 400, cuadrada: true }} onCambio={(url) => guardarCampo({ logo: url })} /></div>
+            <div><p className="mb-2 text-sm font-semibold">Portada</p>
+              <FotoUnica url={negocio.portada} ruta={`negocios/${negocio.id}/portada`} etiqueta="Subir portada" forma="ancha"
+                opciones={{ ladoMax: 1800 }} onCambio={(url) => guardarCampo({ portada: url })} /></div>
+            <div><p className="mb-2 text-sm font-semibold">Tus trabajos</p>
+              <Galeria fotos={negocio.galeria || []} rutaBase={`negocios/${negocio.id}/galeria`} max={MAX_FOTOS_GALERIA}
+                onCambio={(galeria) => guardarCampo({ galeria })} /></div>
+          </div>
+        )}
+      </Seccion>
+
+      <Seccion titulo="Google Maps" texto="Pon tu link de reservas en tu perfil de Google para que te aparezca el botón de reservar en Maps.">
+        <ol className="space-y-3 text-[15px]">
+          <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">1</span><span>Copia tu link de reservas:
+            <span className="mt-2 flex gap-2"><input className="input bg-paper py-2 text-sm" readOnly value={urlReservas} onFocus={(e) => e.target.select()} />
+              <button type="button" className="btn-ghost shrink-0" onClick={() => navigator.clipboard.writeText(urlReservas).then(() => toast.success('Link copiado'), () => toast.error('No se pudo copiar'))}><Copy size={16} /></button></span></span></li>
+          <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">2</span><span>En Google Maps o en Google busca el nombre de tu barbería y entra a tu <b>Perfil de Negocio</b> (si no tienes, créalo gratis en business.google.com).</span></li>
+          <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">3</span><span>Toca <b>Editar perfil</b> → <b>Reservas</b> (o <b>Vínculos de citas</b>) y pega tu link. Google tarda unos días en mostrarlo.</span></li>
+          <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">4</span><span>Ponlo también en tu bio de Instagram, Facebook y en tu estado de WhatsApp.</span></li>
+        </ol>
+        <a href="https://business.google.com/" target="_blank" rel="noreferrer" className="btn-ghost mt-4"><MapPin size={16} /> Abrir Perfil de Negocio</a>
+      </Seccion>
 
       <Seccion titulo="Tu cuenta" texto={user.email}>
         <div className="flex flex-wrap items-center gap-2">

@@ -59,7 +59,7 @@ const ReservaPublica = () => {
             nombre: seleccion.cliente, 
             telefono: seleccion.telefono,
             notas: 'Registrado desde Web Pública'
-        }]).select();
+        }]);
         
         setPaso(4); // Pantalla de éxito
         toast.success("¡Tu cita ha sido agendada!");

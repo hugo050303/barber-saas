@@ -23,7 +23,7 @@ const Agenda = () => {
 
     const { data } = await supabase
       .from('citas')
-      .select(`*, servicios ( nombre, precio, duracion_min, duracion )`) // Traemos duracion
+      .select(`*, servicios ( nombre, precio, duracion_min )`)
       .gte('fecha_hora', inicioDia.toISOString())
       .lte('fecha_hora', finDia.toISOString())
       .order('fecha_hora', { ascending: true });
@@ -106,7 +106,7 @@ const Agenda = () => {
 
                             <div className="flex gap-2 items-center mb-1">
                                 <span className="font-bold text-slate-700 text-lg">{formatearHora(cita.fecha_hora)}</span>
-                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion || 30)}</span>
+                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion_min || 30)}</span>
                             </div>
                             <h4 className="font-bold text-gray-800 text-sm truncate pr-6">{cita.cliente_nombre}</h4>
                             <p className="text-xs text-indigo-500 font-medium mb-1">{cita.servicios?.nombre}</p>

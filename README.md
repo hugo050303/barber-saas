@@ -1,16 +1,30 @@
-# React + Vite
+# Barber SaaS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App de gestión para barberías (agenda, ventas, inventario, nómina, corte de caja y reservas públicas).
+Hecha con React + Vite y **Supabase** (base de datos + login).
 
-Currently, two official plugins are available:
+> ⚠️ Esta app usa `@supabase/supabase-js` (login y API de datos de Supabase).
+> Por eso **no funciona con Neon** u otro Postgres "solo base de datos": necesita un proyecto de Supabase.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Configurar la base de datos (Supabase, plan gratis)
 
-## React Compiler
+1. Crea un proyecto en https://supabase.com/dashboard (o reactiva el tuyo: los proyectos gratis
+   se **pausan** después de ~7 días sin uso, revisa si dice "Paused" y presiona "Restore").
+2. Ve a **SQL Editor → New query**, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y presiona **Run**.
+   Esto crea todas las tablas y los permisos.
+3. Ve a **Authentication → Users → Add user → Create new user**, crea tu correo y contraseña
+   (marca "Auto Confirm User"). Con ese usuario inicias sesión en la app.
+4. Ve a **Project Settings → API** y copia la *Project URL* y la clave *anon / publishable*.
+5. Ponlas en el archivo `.env` (ver `.env.example`):
+   ```
+   VITE_SUPABASE_URL=https://xxxx.supabase.co
+   VITE_SUPABASE_ANON_KEY=...
+   ```
+6. En **Vercel → Settings → Environment Variables** agrega esas mismas dos variables y vuelve a desplegar.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Desarrollo
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+```

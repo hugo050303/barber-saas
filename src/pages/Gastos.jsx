@@ -1,138 +1,69 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { db } from '../db';
+import { useSesion } from '../lib/sesion';
+import { dinero, fechaCorta, hoyYmd, enZona, mesActual, sumarMeses, rangoMes, nombreMes } from '../lib/formato';
+import { PageHeader, Field, Badge, SoloPro } from '../components/ui';
+import { Catalogo } from '../components/Catalogo';
 
-const Gastos = () => {
-  const [gastos, setGastos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [guardando, setGuardando] = useState(false);
+const CATEGORIAS = ['Renta', 'Luz y agua', 'Insumos', 'Sueldos', 'Mantenimiento', 'Publicidad', 'Otros'];
 
-  // Formulario
-  const [descripcion, setDescripcion] = useState('');
-  const [monto, setMonto] = useState('');
-  const [categoria, setCategoria] = useState('');
-
-  useEffect(() => {
-    fetchGastos();
-  }, []);
-
-  async function fetchGastos() {
-    setLoading(true);
-    const { data } = await db
-      .from('gastos')
-      .select('*')
-      .order('fecha', { ascending: false }); // Los más recientes primero
-    setGastos(data || []);
-    setLoading(false);
-  }
-
-  async function agregarGasto(e) {
-    e.preventDefault();
-    setGuardando(true);
-
-    const { error } = await db.from('gastos').insert([
-      { descripcion, monto, categoria }
-    ]);
-
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
-      setDescripcion(''); setMonto(''); setCategoria('');
-      fetchGastos();
-    }
-    setGuardando(false);
-  }
-
-  async function eliminarGasto(id) {
-    if(!window.confirm("¿Eliminar este registro?")) return;
-    await db.from('gastos').delete().eq('id', id);
-    fetchGastos();
-  }
-
-  // Calcular el total de gastos mostrados
-  const totalGastos = gastos.reduce((acc, curr) => acc + Number(curr.monto), 0);
-
+function Formulario({ inicial, onGuardar }) {
+  const [f, setF] = useState({
+    descripcion: inicial.descripcion || '', monto: inicial.monto ?? '', categoria: inicial.categoria || 'Insumos',
+    fecha: inicial.fecha ? hoyYmd(new Date(inicial.fecha)) : hoyYmd(),
+  });
+  const [enviando, setEnviando] = useState(false);
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-slate-800 mb-6">💸 Control de Gastos</h1>
-
-      {/* FORMULARIO */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-gray-200">
-        <h2 className="text-lg font-semibold text-slate-700 mb-4">Registrar Salida de Dinero</h2>
-        <form onSubmit={agregarGasto} className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm text-gray-600 mb-1">Descripción</label>
-                <input required type="text" placeholder="Ej. Recibo de Luz" className="w-full border p-2 rounded"
-                    value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-            </div>
-            <div className="w-40">
-                <label className="block text-sm text-gray-600 mb-1">Categoría</label>
-                <select className="w-full border p-2 rounded" 
-                    value={categoria} onChange={e => setCategoria(e.target.value)} required>
-                    <option value="">Seleccionar...</option>
-                    <option value="Servicios">Servicios (Luz/Agua)</option>
-                    <option value="Renta">Renta</option>
-                    <option value="Nomina">Nómina / Salarios</option>
-                    <option value="Insumos">Compra de Insumos</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                    <option value="Otros">Otros</option>
-                </select>
-            </div>
-            <div className="w-32">
-                <label className="block text-sm text-gray-600 mb-1">Monto</label>
-                <input required type="number" placeholder="$" className="w-full border p-2 rounded"
-                    value={monto} onChange={e => setMonto(e.target.value)} />
-            </div>
-            <button type="submit" disabled={guardando} 
-                className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 font-medium h-10">
-                {guardando ? '...' : 'Registrar -'}
-            </button>
-        </form>
+    <form onSubmit={async (e) => {
+      e.preventDefault(); setEnviando(true);
+      await onGuardar({ ...f, descripcion: f.descripcion.trim(), fecha: enZona(f.fecha, '12:00').toISOString() });
+      setEnviando(false);
+    }} className="space-y-4">
+      <Field label="Concepto"><input className="input" required maxLength={80} placeholder="Navajas desechables" value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Monto"><input className="input" type="number" min="0" step="0.5" required value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} /></Field>
+        <Field label="Fecha"><input className="input" type="date" required value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></Field>
       </div>
-
-      {/* RESUMEN RÁPIDO */}
-      <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg text-red-800 font-bold flex justify-between items-center">
-        <span>Total Gastado (Histórico):</span>
-        <span className="text-2xl">${totalGastos}</span>
-      </div>
-
-      {/* LISTA DE GASTOS */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-        <table className="w-full text-left">
-            <thead className="bg-slate-100 text-slate-600 uppercase text-xs font-bold">
-                <tr>
-                    <th className="p-4">Fecha</th>
-                    <th className="p-4">Descripción</th>
-                    <th className="p-4">Categoría</th>
-                    <th className="p-4">Monto</th>
-                    <th className="p-4 text-right"></th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-                {gastos.map((g) => (
-                    <tr key={g.id} className="hover:bg-gray-50">
-                        <td className="p-4 text-gray-500 text-sm">
-                            {new Date(g.fecha).toLocaleDateString()}
-                        </td>
-                        <td className="p-4 font-medium text-slate-800">{g.descripcion}</td>
-                        <td className="p-4">
-                            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold uppercase">
-                                {g.categoria}
-                            </span>
-                        </td>
-                        <td className="p-4 text-red-600 font-bold">-${g.monto}</td>
-                        <td className="p-4 text-right">
-                            <button onClick={() => eliminarGasto(g.id)} className="text-gray-400 hover:text-red-500">
-                                🗑️
-                            </button>
-                        </td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-        {gastos.length === 0 && <p className="text-center p-8 text-gray-400">No hay gastos registrados.</p>}
-      </div>
-    </div>
+      <Field label="Categoría"><select className="input" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })}>{CATEGORIAS.map((c) => <option key={c}>{c}</option>)}</select></Field>
+      <button className="btn-primary w-full py-3" disabled={enviando}>Guardar</button>
+    </form>
   );
-};
+}
 
-export default Gastos;
+export default function Gastos() {
+  const { pro } = useSesion();
+  const [mes, setMes] = useState(() => mesActual());
+  const [filas, setFilas] = useState(null);
+
+  // Solo se leen los gastos del mes que estás viendo
+  const recargar = useCallback(async () => {
+    const [ini, fin] = rangoMes(mes);
+    const { data, error } = await db.from('gastos').select('*').gte('fecha', ini).lte('fecha', fin).order('fecha', { ascending: false });
+    if (error) toast.error('No se pudieron cargar los gastos.');
+    setFilas(data || []);
+  }, [mes]);
+  useEffect(() => { if (pro) recargar(); }, [pro, recargar]);
+
+  if (!pro) return <><PageHeader titulo="Gastos" /><SoloPro titulo="Sabe cuánto te queda de verdad">Anota renta, luz, insumos y sueldos. Se descuentan en el corte del día y en tus reportes del mes.</SoloPro></>;
+  const total = (filas || []).reduce((a, g) => a + (Number(g.monto) || 0), 0);
+  return (
+    <>
+      <PageHeader titulo="Gastos" sub={<><span className="capitalize">{nombreMes(mes)}</span>: <b className="text-ink">{dinero(total)}</b></>}>
+        <div className="flex rounded border border-line bg-card">
+          <button onClick={() => { setFilas(null); setMes(sumarMeses(mes, -1)); }} className="p-2.5 hover:bg-paper" aria-label="Mes anterior"><ChevronLeft size={18} /></button>
+          <button onClick={() => { setFilas(null); setMes(sumarMeses(mes, 1)); }} disabled={mes === mesActual()} className="p-2.5 hover:bg-paper disabled:opacity-30" aria-label="Mes siguiente"><ChevronRight size={18} /></button>
+        </div>
+      </PageHeader>
+      <Catalogo tabla="gastos" titulo="gasto" textoAgregar="Registrar gasto" filas={filas} recargar={recargar} Formulario={Formulario}
+        vacio={{ titulo: 'Sin gastos este mes', texto: 'Anota cada salida de dinero para que tu corte cuadre.' }}
+        columnas={[
+          { label: 'Fecha', render: (g) => <span className="whitespace-nowrap text-ink-2">{fechaCorta(g.fecha)}</span> },
+          { label: 'Concepto', render: (g) => <span className="font-semibold">{g.descripcion}</span> },
+          { label: 'Categoría', render: (g) => <Badge>{g.categoria || 'Otros'}</Badge> },
+          { label: 'Monto', className: 'text-right', render: (g) => <span className="font-semibold">{dinero(g.monto)}</span> },
+        ]} />
+    </>
+  );
+}

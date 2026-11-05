@@ -1,184 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { db } from '../db';
+import { useSesion } from '../lib/sesion';
+import { dinero, hoyYmd, sumarDias, diaSemana, inicioDia, finDia } from '../lib/formato';
+import { PageHeader, SoloPro, Cargando, Vacio, Field } from '../components/ui';
 
-const Nomina = () => {
-  const [loading, setLoading] = useState(false);
-  const [barberos, setBarberos] = useState([]);
-  const [reporte, setReporte] = useState([]);
-  
-  // Fechas del filtro (Por defecto: Inicio y Fin de mes actual)
-  const date = new Date();
-  const primerDia = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-  const ultimoDia = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+function rango(tipo) {
+  const hoy = hoyYmd();
+  if (tipo === 'semana') return [sumarDias(hoy, -((diaSemana(hoy) + 6) % 7)), hoy];
+  return [`${hoy.slice(0, 8)}01`, hoy];
+}
 
-  const [fechaInicio, setFechaInicio] = useState(primerDia);
-  const [fechaFin, setFechaFin] = useState(ultimoDia);
+export default function Nomina() {
+  const { pro } = useSesion();
+  const [desde, setDesde] = useState(() => rango('semana')[0]);
+  const [hasta, setHasta] = useState(() => rango('semana')[1]);
+  const [filas, setFilas] = useState(null);
 
-  useEffect(() => {
-    fetchBarberos();
-  }, []);
+  async function calcular() {
+    setFilas(null);
+    const [b, c] = await Promise.all([
+      db.from('barberos').select('*').order('nombre'),
+      db.from('citas').select('barbero_id, precio, servicios(precio)').eq('estado', 'finalizada').gte('fecha_hora', inicioDia(desde)).lte('fecha_hora', finDia(hasta)),
+    ]);
+    setFilas((b.data || []).map((barbero) => {
+      const suyas = (c.data || []).filter((x) => x.barbero_id === barbero.id);
+      const vendido = suyas.reduce((a, x) => a + (Number(x.precio ?? x.servicios?.precio) || 0), 0);
+      const pct = Number(barbero.porcentaje_comision ?? 50);
+      return { ...barbero, pct, servicios: suyas.length, vendido, pago: (vendido * pct) / 100 };
+    }));
+  }
+  useEffect(() => { if (pro) calcular(); }, [pro, desde, hasta]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cuando cambian las fechas o cargan los barberos, recalculamos
-  useEffect(() => {
-    if (barberos.length > 0) {
-        calcularNomina();
-    }
-  }, [fechaInicio, fechaFin, barberos]);
+  if (!pro) return <><PageHeader titulo="Nómina" /><SoloPro titulo="Paga comisiones sin pelearte con la calculadora">Pon el porcentaje de cada barbero y te decimos cuánto le toca por los servicios terminados de la semana o del mes.</SoloPro></>;
 
-  async function fetchBarberos() {
-    const { data } = await db.from('barberos').select('*').order('nombre');
-    setBarberos(data || []);
+  async function cambiarPct(b, valor) {
+    const pct = Math.min(100, Math.max(0, Number(valor) || 0));
+    const { error } = await db.from('barberos').update({ porcentaje_comision: pct }).eq('id', b.id);
+    if (error) return toast.error('No se pudo guardar el porcentaje.');
+    calcular();
   }
 
-  async function actualizarComision(id, nuevoPorcentaje) {
-    // Guardar el nuevo % en base de datos
-    await db.from('barberos').update({ porcentaje_comision: nuevoPorcentaje }).eq('id', id);
-    fetchBarberos(); // Recargar para actualizar cálculos
-  }
-
-  async function calcularNomina() {
-    setLoading(true);
-
-    // 1. Traer todas las citas FINALIZADAS en el rango de fechas
-    const { data: citas } = await db
-      .from('citas')
-      .select(`
-        barbero_id,
-        servicios ( precio )
-      `)
-      .eq('estado', 'finalizada')
-      .gte('fecha_hora', fechaInicio + 'T00:00:00')
-      .lte('fecha_hora', fechaFin + 'T23:59:59');
-
-    if (!citas) {
-        setLoading(false);
-        return;
-    }
-
-    // 2. Agrupar dinero por barbero
-    const calculo = barberos.map(barbero => {
-        // Filtrar citas de este barbero
-        const susCitas = citas.filter(c => c.barbero_id === barbero.id);
-        
-        // Sumar el total generado (Venta Bruta)
-        const totalVendido = susCitas.reduce((acc, curr) => acc + (curr.servicios?.precio || 0), 0);
-        
-        // Calcular su pago (Venta * Porcentaje / 100)
-        const pagoBarbero = (totalVendido * barbero.porcentaje_comision) / 100;
-        
-        // Calcular ganancia del negocio (El resto)
-        const gananciaNegocio = totalVendido - pagoBarbero;
-
-        return {
-            ...barbero,
-            cortes: susCitas.length,
-            totalVendido,
-            pagoBarbero,
-            gananciaNegocio
-        };
-    });
-
-    setReporte(calculo);
-    setLoading(false);
-  }
+  const totales = (filas || []).reduce((a, f) => ({ vendido: a.vendido + f.vendido, pago: a.pago + f.pago }), { vendido: 0, pago: 0 });
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-800">💰 Nómina y Comisiones</h1>
-        <p className="text-gray-500 text-sm">Calcula cuánto pagar a tu equipo.</p>
-      </header>
-
-      {/* FILTROS DE FECHA */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-wrap gap-4 items-end">
-        <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Desde</label>
-            <input 
-                type="date" 
-                className="border rounded p-2 text-slate-700"
-                value={fechaInicio}
-                onChange={e => setFechaInicio(e.target.value)}
-            />
-        </div>
-        <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hasta</label>
-            <input 
-                type="date" 
-                className="border rounded p-2 text-slate-700"
-                value={fechaFin}
-                onChange={e => setFechaFin(e.target.value)}
-            />
-        </div>
-        <div className="pb-2 text-sm text-gray-400">
-            * Se calculan solo citas finalizadas.
-        </div>
+    <>
+      <PageHeader titulo="Nómina" sub="Comisiones por servicios terminados. El porcentaje se guarda al salir de la casilla.">
+        <button onClick={() => { const [a, b] = rango('semana'); setDesde(a); setHasta(b); }} className="btn-ghost">Esta semana</button>
+        <button onClick={() => { const [a, b] = rango('mes'); setDesde(a); setHasta(b); }} className="btn-ghost">Este mes</button>
+      </PageHeader>
+      <div className="mb-6 grid max-w-md grid-cols-2 gap-3">
+        <Field label="Desde"><input className="input" type="date" value={desde} onChange={(e) => e.target.value && setDesde(e.target.value)} /></Field>
+        <Field label="Hasta"><input className="input" type="date" value={hasta} onChange={(e) => e.target.value && setHasta(e.target.value)} /></Field>
       </div>
-
-      {loading ? <p className="text-center py-10">Calculando pagos...</p> : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {reporte.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden flex flex-col">
-                    
-                    {/* ENCABEZADO TARJETA */}
-                    <div className="p-6 border-b border-gray-100 bg-slate-50">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h3 className="font-bold text-xl text-slate-800">{item.nombre}</h3>
-                                <p className="text-sm text-gray-500">{item.cortes} cortes realizados</p>
-                            </div>
-                            <div className="text-right">
-                                <label className="text-[10px] uppercase font-bold text-gray-400 block">Comisión</label>
-                                <div className="flex items-center gap-1 justify-end">
-                                    <input 
-                                        type="number" 
-                                        className="w-12 text-right border-b border-gray-300 bg-transparent font-bold focus:outline-none focus:border-indigo-500"
-                                        value={item.porcentaje_comision}
-                                        onChange={(e) => actualizarComision(item.id, e.target.value)}
-                                    />
-                                    <span className="text-gray-500 font-bold">%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* CUERPO DE CÁLCULOS */}
-                    <div className="p-6 space-y-4 flex-1">
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-500 text-sm">Venta Total Generada</span>
-                            <span className="font-bold text-slate-700">${item.totalVendido}</span>
-                        </div>
-                        
-                        <div className="w-full bg-gray-100 h-px"></div>
-
-                        <div className="flex justify-between items-center text-green-600">
-                            <span className="font-bold text-sm">A Pagar (Barbero)</span>
-                            <span className="font-extrabold text-2xl">${item.pagoBarbero.toFixed(2)}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center text-indigo-600 opacity-70 text-sm">
-                            <span className="font-medium">Ganancia (Negocio)</span>
-                            <span className="font-bold">+${item.gananciaNegocio.toFixed(2)}</span>
-                        </div>
-                    </div>
-
-                    {/* PIE DE TARJETA */}
-                    <div className="p-4 bg-gray-50 text-center">
-                        <button 
-                            onClick={() => alert(`Pago de $${item.pagoBarbero} registrado para ${item.nombre} (Simulación)`)}
-                            className="text-indigo-600 text-sm font-bold hover:underline">
-                            Marcar como Pagado
-                        </button>
-                    </div>
-                </div>
-            ))}
+      {filas === null ? <Cargando texto="Calculando…" /> : filas.length === 0 ? <Vacio titulo="No hay barberos registrados" /> : (
+        <div className="card overflow-x-auto">
+          <table className="tabla w-full min-w-[560px]">
+            <thead><tr><th>Barbero</th><th className="text-right">Servicios</th><th className="text-right">Vendido</th><th className="text-right">Comisión</th><th className="text-right">A pagar</th></tr></thead>
+            <tbody>
+              {filas.map((f) => (
+                <tr key={f.id}>
+                  <td className="font-semibold">{f.nombre}</td>
+                  <td className="text-right">{f.servicios}</td>
+                  <td className="text-right">{dinero(f.vendido)}</td>
+                  <td className="text-right">
+                    <input type="number" min="0" max="100" defaultValue={f.pct} key={`${f.id}-${f.pct}`} onBlur={(e) => Number(e.target.value) !== f.pct && cambiarPct(f, e.target.value)}
+                      className="w-16 rounded border border-line bg-card px-2 py-1 text-right outline-none focus:border-ink" /> %
+                  </td>
+                  <td className="text-right text-lg font-bold">{dinero(f.pago)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-paper font-semibold">
+                <td className="border-t border-line px-4 py-3">Total</td><td className="border-t border-line" />
+                <td className="border-t border-line px-4 py-3 text-right">{dinero(totales.vendido)}</td><td className="border-t border-line" />
+                <td className="border-t border-line px-4 py-3 text-right text-lg">{dinero(totales.pago)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <p className="border-t border-line px-4 py-3 text-sm text-ink-2">Le queda al negocio: <b className="text-ink">{dinero(totales.vendido - totales.pago)}</b></p>
         </div>
       )}
-      
-      {reporte.length === 0 && !loading && (
-          <p className="text-center text-gray-400 mt-10">No hay barberos registrados.</p>
-      )}
-    </div>
+    </>
   );
-};
-
-export default Nomina;
+}

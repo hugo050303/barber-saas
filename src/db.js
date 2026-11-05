@@ -14,9 +14,11 @@
 // - `servicios ( ... )` en el select trae el documento relacionado usando el
 //   campo `servicio_id` (nombre de la colección sin la "s" final + "_id").
 // - Las fechas se guardan como texto ISO (ej. "2026-11-05T18:30:00.000Z").
+// - Multi-negocio: cada barbería guarda sus datos en negocios/{id}/<colección>.
+//   Llama a usarNegocio(id) al iniciar sesión (o al abrir una página pública de reservas).
 
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where, orderBy, limit as limitar,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
 
@@ -39,6 +41,16 @@ const DEFAULTS = {
   gastos: () => ({ fecha: new Date().toISOString() }),
   cortes_caja: () => ({ fecha: new Date().toISOString() }),
 };
+
+let negocioActual = null;
+export function usarNegocio(id) { negocioActual = id; }
+export function negocioId() { return negocioActual; }
+
+// Ruta de la colección dentro del negocio activo
+export function ruta(table) {
+  if (!negocioActual) throw new Error('No hay negocio activo');
+  return `negocios/${negocioActual}/${table}`;
+}
 
 const RANGE_OPS = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
 
@@ -92,6 +104,7 @@ class QueryBuilder {
     this.values = null;
     this.returnRows = false;
     this.singleMode = null; // 'single' | 'maybe'
+    this.max = null;
   }
 
   select(columns = '*') {
@@ -111,6 +124,9 @@ class QueryBuilder {
   lte(field, value) { this.filters.push({ op: 'lte', field, value }); return this; }
   ilike(field, value) { this.filters.push({ op: 'ilike', field, value }); return this; }
   order(field, { ascending = true } = {}) { this.orders.push({ field, ascending }); return this; }
+  // Máximo de filas. Si los filtros y el orden lo permiten, el límite se aplica en Firestore
+  // (solo se cobran esas lecturas); si no, se aplica después en el navegador.
+  limit(n) { this.max = n; return this; }
   single() { this.singleMode = 'single'; return this; }
   maybeSingle() { this.singleMode = 'maybe'; return this; }
 
@@ -141,7 +157,7 @@ class QueryBuilder {
   async fetchRows() {
     const idF = this.idFilter();
     if (idF) {
-      const snap = await getDoc(doc(firestore, this.table, String(idF.value)));
+      const snap = await getDoc(doc(firestore, ruta(this.table), String(idF.value)));
       const rows = snap.exists() ? [{ id: snap.id, ...snap.data() }] : [];
       return rows.filter((r) => this.filters.every((f) => matches(r, f)));
     }
@@ -153,7 +169,16 @@ class QueryBuilder {
       ? ranges.map((f) => where(f.field, RANGE_OPS[f.op], f.value))
       : [];
 
-    const snap = await getDocs(query(collection(firestore, this.table), ...constraints));
+    // ¿Se puede ordenar y limitar en el servidor sin índices compuestos?
+    const soloRangos = this.filters.every((f) => RANGE_OPS[f.op]) && rangeFields.size <= 1;
+    const campoRango = [...rangeFields][0];
+    const orden = this.orders[0];
+    if (this.max && soloRangos && this.orders.length <= 1 && (!orden || !campoRango || orden.field === campoRango)) {
+      if (orden) constraints.push(orderBy(orden.field, orden.ascending ? 'asc' : 'desc'));
+      constraints.push(limitar(this.max));
+    }
+
+    const snap = await getDocs(query(collection(firestore, ruta(this.table)), ...constraints));
     return snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((r) => this.filters.every((f) => matches(r, f)));
@@ -164,7 +189,7 @@ class QueryBuilder {
 
     for (const rel of parseEmbeds(this.columns)) {
       const fk = rel.replace(/s$/, '') + '_id';
-      const relSnap = await getDocs(collection(firestore, rel));
+      const relSnap = await getDocs(collection(firestore, ruta(rel)));
       const byId = new Map(relSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
       rows = rows.map((r) => ({ ...r, [rel]: r[fk] != null ? byId.get(String(r[fk])) || null : null }));
     }
@@ -189,7 +214,7 @@ class QueryBuilder {
         created_at: new Date().toISOString(),
         ...normalize(this.table, row),
       };
-      const ref = await addDoc(collection(firestore, this.table), data);
+      const ref = await addDoc(collection(firestore, ruta(this.table)), data);
       created.push({ id: ref.id, ...data });
     }
     return this.returnRows || this.singleMode ? this.finish(created) : null;
@@ -203,7 +228,7 @@ class QueryBuilder {
       : await this.fetchRows();
 
     for (const { id } of targets) {
-      const ref = doc(firestore, this.table, id);
+      const ref = doc(firestore, ruta(this.table), id);
       if (kind === 'delete') await deleteDoc(ref);
       else await setDoc(ref, normalize(this.table, this.values), { merge: true });
     }
@@ -211,6 +236,7 @@ class QueryBuilder {
   }
 
   finish(rows) {
+    if (this.max && rows.length > this.max) rows = rows.slice(0, this.max);
     if (!this.singleMode) return rows;
     if (rows.length === 0) {
       if (this.singleMode === 'maybe') return null;

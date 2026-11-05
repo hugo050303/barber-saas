@@ -1,131 +1,247 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
-import ModalCita from '../components/ModalCita';
-import ModalDetalles from '../components/ModalDetalles';
+import { useSesion } from '../lib/sesion';
+import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia } from '../lib/negocio';
+import { horariosLibres, horarioDelDia, chocaCon } from '../lib/horario';
+import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos } from '../lib/formato';
+import { PageHeader, Modal, Field, Badge, Cargando, Vacio } from '../components/ui';
 
-const Agenda = () => {
-  const [citas, setCitas] = useState([]);
-  const [barberos, setBarberos] = useState([]); 
-  const [loading, setLoading] = useState(true);
-  const [modalNuevoAbierto, setModalNuevoAbierto] = useState(false);
-  const [citaSeleccionada, setCitaSeleccionada] = useState(null); 
-  const [fechaFiltro, setFechaFiltro] = useState(new Date());
+const ESTADOS = {
+  pendiente: { label: 'Pendiente', tono: 'neutro', borde: 'border-l-ink' },
+  confirmada: { label: 'Confirmada', tono: 'ambar', borde: 'border-l-ambar' },
+  finalizada: { label: 'Terminada', tono: 'verde', borde: 'border-l-verde' },
+  cancelada: { label: 'Cancelada', tono: 'rojo', borde: 'border-l-rojo opacity-50' },
+};
+const precioCita = (c) => Number(c.precio ?? c.servicios?.precio) || 0;
 
-  useEffect(() => { fetchData(); }, [fechaFiltro]);
-
-  async function fetchData() {
-    setLoading(true);
-    const { data: dataBarberos } = await db.from('barberos').select('*').order('nombre');
-    setBarberos(dataBarberos || []);
-
-    const inicioDia = new Date(fechaFiltro); inicioDia.setHours(0, 0, 0, 0);
-    const finDia = new Date(fechaFiltro); finDia.setHours(23, 59, 59, 999);
-
-    const { data } = await db
-      .from('citas')
-      .select(`*, servicios ( nombre, precio, duracion_min )`)
-      .gte('fecha_hora', inicioDia.toISOString())
-      .lte('fecha_hora', finDia.toISOString())
-      .order('fecha_hora', { ascending: true });
-
-    setCitas(data || []);
-    setLoading(false);
-  }
-
-  // --- HELPERS ---
-  const formatearHora = (f) => new Date(f).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-  
-  // Calcula hora fin basado en duración
-  const obtenerHoraFin = (fechaInicio, duracionMin = 30) => {
-    const d = new Date(fechaInicio);
-    d.setMinutes(d.getMinutes() + duracionMin);
-    return formatearHora(d);
+function LinkReservas({ slug }) {
+  const [copiado, setCopiado] = useState(false);
+  const url = `${window.location.origin}/r/${slug}`;
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(url); setCopiado(true); setTimeout(() => setCopiado(false), 2000); }
+    catch { toast.error('No se pudo copiar. Mantén presionado el link para copiarlo.'); }
   };
-
-  const enviarWhatsApp = (e, telefono, nombre, fecha) => {
-    e.stopPropagation(); // Evita abrir el modal de detalles
-    const mensaje = `Hola ${nombre}, confirmamos tu cita para hoy a las ${formatearHora(fecha)} en la Barbería. 💈`;
-    window.open(`https://wa.me/52${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
-  };
-
-  const obtenerColorBorde = (estado) => {
-    switch(estado) {
-        case 'finalizada': return 'border-l-green-500 bg-green-50/50 opacity-75';
-        case 'cancelada': return 'border-l-red-400 bg-red-50/50 opacity-60';
-        default: return 'border-l-indigo-500 bg-white';
-    }
-  };
-
   return (
-    <div className="p-4 md:p-6 bg-gray-50 min-h-screen flex flex-col">
-      <header className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">📅 Agenda</h1>
-            <p className="text-slate-500 text-sm capitalize">
-                {fechaFiltro.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-        </div>
-        <div className="flex gap-2 w-full md:w-auto">
-            <input type="date" className="border rounded-xl px-3 py-2 flex-1"
-                value={fechaFiltro.toISOString().split('T')[0]}
-                onChange={(e) => setFechaFiltro(new Date(e.target.value + 'T12:00:00'))}
-            />
-            <button onClick={() => setModalNuevoAbierto(true)}
-                className="bg-slate-900 text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2">
-              <span>+</span> <span className="hidden md:inline">Nueva Cita</span>
-            </button>
-        </div>
-      </header>
-
-      <ModalCita isOpen={modalNuevoAbierto} onClose={() => setModalNuevoAbierto(false)} alGuardar={fetchData} />
-      <ModalDetalles isOpen={!!citaSeleccionada} cita={citaSeleccionada} onClose={() => setCitaSeleccionada(null)} onUpdate={fetchData} />
-
-      {loading ? <div className="text-center py-20 animate-pulse text-gray-400">Cargando agenda...</div> : (
-        <div className="flex gap-4 overflow-x-auto pb-4 h-full snap-x">
-          {barberos.map((barbero) => {
-            const citasDelBarbero = citas.filter(c => c.barbero_id === barbero.id);
-            return (
-              <div key={barbero.id} className="min-w-[85vw] md:min-w-[320px] flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col snap-center">
-                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
-                    <h3 className="font-bold text-lg text-slate-800">{barbero.nombre}</h3>
-                    <span className="text-xs font-bold bg-white border px-2 py-1 rounded-full text-slate-500">{citasDelBarbero.length}</span>
-                </div>
-
-                <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[300px]">
-                    {citasDelBarbero.map((cita) => (
-                        <div key={cita.id} onClick={() => setCitaSeleccionada(cita)} 
-                            className={`p-3 rounded-xl shadow-sm border-l-4 hover:shadow-md transition-all cursor-pointer group relative ${obtenerColorBorde(cita.estado)}`}>
-                            
-                            {/* Botón Flotante WhatsApp (Solo aparece en hover o siempre en movil) */}
-                            {cita.cliente_telefono && (
-                                <button onClick={(e) => enviarWhatsApp(e, cita.cliente_telefono, cita.cliente_nombre, cita.fecha_hora)}
-                                    className="absolute top-2 right-2 bg-green-100 text-green-600 p-1.5 rounded-full hover:bg-green-500 hover:text-white transition-colors z-10">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326z"/></svg>
-                                </button>
-                            )}
-
-                            <div className="flex gap-2 items-center mb-1">
-                                <span className="font-bold text-slate-700 text-lg">{formatearHora(cita.fecha_hora)}</span>
-                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion_min || 30)}</span>
-                            </div>
-                            <h4 className="font-bold text-gray-800 text-sm truncate pr-6">{cita.cliente_nombre}</h4>
-                            <p className="text-xs text-indigo-500 font-medium mb-1">{cita.servicios?.nombre}</p>
-                        </div>
-                    ))}
-                    {citasDelBarbero.length === 0 && (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50">
-                            <span className="text-4xl mb-2">💤</span>
-                            <span className="text-sm">Libre</span>
-                        </div>
-                    )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="card mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="eyebrow">Tu link de reservas</p>
+        <a href={url} target="_blank" rel="noreferrer" className="mt-1 block truncate font-semibold underline-offset-4 hover:underline">{url.replace(/^https?:\/\//, '')}</a>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <button onClick={copiar} className="btn-ghost">{copiado ? <Check size={16} /> : <Copy size={16} />}{copiado ? 'Copiado' : 'Copiar'}</button>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`Ya puedes apartar tu cita en línea: ${url}`)}`} target="_blank" rel="noreferrer" className="btn-ghost"><MessageCircle size={16} /> Compartir</a>
+      </div>
     </div>
   );
-};
+}
 
-export default Agenda;
+function Primeros({ barberos, servicios }) {
+  const pasos = [
+    { hecho: servicios > 0, texto: 'Agrega tus servicios con precio y duración', to: '/app/servicios' },
+    { hecho: barberos > 0, texto: 'Da de alta a tu equipo (o a ti mismo)', to: '/app/equipo' },
+    { hecho: false, texto: 'Revisa tu horario, hora de comida y dirección', to: '/app/configuracion' },
+  ];
+  return (
+    <div className="card mb-6 p-5">
+      <p className="display text-3xl">Primeros pasos</p>
+      <p className="mt-1 text-sm text-ink-2">Con esto tu página de reservas queda lista para recibir citas.</p>
+      <ol className="mt-4 space-y-2">
+        {pasos.map((p, i) => (
+          <li key={p.to}>
+            <Link to={p.to} className="flex items-center gap-3 rounded border border-line px-3 py-2.5 hover:border-ink">
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${p.hecho ? 'bg-verde text-white' : 'bg-paper text-ink-2'}`}>{p.hecho ? <Check size={14} /> : i + 1}</span>
+              <span className={p.hecho ? 'text-ink-3 line-through' : 'font-medium'}>{p.texto}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function NuevaCita({ abierto, onClose, onGuardada, barberos, servicios, diaInicial, horario }) {
+  const vacio = { cliente: '', telefono: '', barberoId: '', servicioId: '', fecha: diaInicial, hora: '' };
+  const [f, setF] = useState(vacio);
+  const [ocupados, setOcupados] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => { if (abierto) setF({ ...vacio, barberoId: barberos.length === 1 ? barberos[0].id : '' }); }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (abierto && f.fecha) ocupadosDelDia(f.fecha).then(setOcupados).catch(() => setOcupados([])); }, [abierto, f.fecha]);
+
+  const servicio = servicios.find((s) => s.id === f.servicioId);
+  const barbero = barberos.find((b) => b.id === f.barberoId);
+  const sugeridas = servicio && barbero && f.fecha
+    ? horariosLibres({ ymd: f.fecha, horario, duracion: servicio.duracion_min, ocupados, barbero, paraPanel: true }).slice(0, 16)
+    : [];
+  const inicio = f.fecha && f.hora ? enZona(f.fecha, f.hora).toISOString() : null;
+  const choque = inicio && barbero && servicio && chocaCon(ocupados, barbero.id, inicio, servicio.duracion_min);
+  const fueraDeHorario = barbero && f.fecha && !horarioDelDia(horario, f.fecha, barbero);
+
+  async function guardar(e) {
+    e.preventDefault();
+    if (!servicio || !barbero) return toast.error('Elige barbero y servicio.');
+    if (choque && !window.confirm(`${barbero.nombre} ya tiene una cita a esa hora. ¿Agendar de todos modos?`)) return;
+    setGuardando(true);
+    try {
+      await crearCita({ cliente: f.cliente, telefono: f.telefono, inicio, barbero, servicio, origen: 'panel' });
+      toast.success('Cita agendada');
+      onGuardada(f.fecha);
+      onClose();
+    } catch { toast.error('No se pudo guardar la cita.'); }
+    setGuardando(false);
+  }
+
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  return (
+    <Modal abierto={abierto} onClose={onClose} titulo="Nueva cita">
+      <form onSubmit={guardar} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cliente" className="col-span-2 sm:col-span-1"><input className="input" required value={f.cliente} onChange={set('cliente')} /></Field>
+          <Field label="WhatsApp" className="col-span-2 sm:col-span-1"><input className="input" inputMode="numeric" placeholder="10 dígitos" value={f.telefono} onChange={(e) => setF({ ...f, telefono: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
+          <Field label="Servicio"><select className="input" required value={f.servicioId} onChange={set('servicioId')}><option value="">Elegir…</option>{servicios.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select></Field>
+          <Field label="Barbero"><select className="input" required value={f.barberoId} onChange={set('barberoId')}><option value="">Elegir…</option>{barberos.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}</select></Field>
+          <Field label="Día"><input className="input" type="date" required value={f.fecha} onChange={set('fecha')} /></Field>
+          <Field label="Hora"><input className="input" type="time" required value={f.hora} onChange={set('hora')} /></Field>
+        </div>
+        {fueraDeHorario && <p className="flex gap-2 rounded bg-ambar-soft px-3 py-2 text-sm text-ambar"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> Ese día está cerrado o es descanso de {barbero.nombre}. Puedes agendar igual.</p>}
+        {choque && <p className="flex gap-2 rounded bg-rojo-soft px-3 py-2 text-sm text-rojo-dark"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> Se empalma con otra cita de {barbero.nombre}.</p>}
+        {sugeridas.length > 0 && (
+          <div>
+            <p className="eyebrow mb-2">Horas libres de {barbero.nombre}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {sugeridas.map((h) => {
+                const hh = horaYmd(h);
+                return <button type="button" key={h} onClick={() => setF({ ...f, hora: hh })} className={`rounded border px-2.5 py-1 text-sm ${f.hora === hh ? 'border-ink bg-ink text-paper' : 'border-line hover:border-ink'}`}>{hora(h)}</button>;
+              })}
+            </div>
+          </div>
+        )}
+        <button className="btn-primary w-full py-3" disabled={guardando}>{guardando ? 'Guardando…' : 'Agendar'}</button>
+      </form>
+    </Modal>
+  );
+}
+
+function DetalleCita({ cita, onClose, onCambio, negocio }) {
+  const [trabajando, setTrabajando] = useState(false);
+  if (!cita) return null;
+  const accion = async (fn, msg) => {
+    setTrabajando(true);
+    try { await fn(); toast.success(msg); onCambio(); onClose(); } catch { toast.error('No se pudo actualizar la cita.'); }
+    setTrabajando(false);
+  };
+  const recordatorio = `Hola ${cita.cliente_nombre}, te esperamos en ${negocio.nombre} el ${fechaLarga(cita.fecha_hora)} a las ${hora(cita.fecha_hora)} para tu ${cita.servicios?.nombre || 'cita'}. Si no puedes venir, avísanos por aquí.`;
+  const e = ESTADOS[cita.estado] || ESTADOS.pendiente;
+  return (
+    <Modal abierto onClose={onClose} titulo={cita.cliente_nombre}>
+      <div className="mb-5 space-y-1 text-[15px]">
+        <p className="flex gap-1.5"><Badge tono={e.tono}>{e.label}</Badge> {cita.origen === 'web' && <Badge><Globe size={10} /> Por link</Badge>}</p>
+        <p className="pt-2 font-semibold first-letter:uppercase">{fechaLarga(cita.fecha_hora)} · {hora(cita.fecha_hora)}{cita.fin && ` a ${hora(cita.fin)}`}</p>
+        <p className="text-ink-2">{cita.servicios?.nombre} · {dinero(precioCita(cita))}</p>
+        {cita.cliente_telefono && <p className="text-ink-2">Tel. {cita.cliente_telefono}</p>}
+      </div>
+      <div className="grid gap-2">
+        {cita.cliente_telefono && <a href={linkWhatsApp(cita.cliente_telefono, recordatorio)} target="_blank" rel="noreferrer" className="btn-ghost"><MessageCircle size={16} /> Mandar recordatorio</a>}
+        {cita.estado === 'pendiente' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'confirmada'), 'Cita confirmada')} className="btn-ghost">Marcar confirmada</button>}
+        {cita.estado !== 'finalizada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'finalizada'), 'Servicio terminado')} className="btn-primary">Terminado y cobrado</button>}
+        {cita.estado === 'finalizada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'confirmada'), 'Se deshizo')} className="btn-ghost">Deshacer "terminado"</button>}
+        {cita.estado !== 'cancelada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'cancelada'), 'Cita cancelada')} className="btn-ghost text-rojo">Cancelar cita</button>}
+        {cita.estado === 'cancelada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'pendiente'), 'Cita reactivada')} className="btn-ghost">Reactivar</button>}
+        <button disabled={trabajando} onClick={() => window.confirm('¿Borrar esta cita para siempre?') && accion(() => eliminarCita(cita), 'Cita borrada')} className="btn-link mt-2 justify-start text-sm text-ink-3"><Trash2 size={14} /> Borrar del historial</button>
+      </div>
+    </Modal>
+  );
+}
+
+export default function Agenda() {
+  const { negocio } = useSesion();
+  const [dia, setDia] = useState(() => hoyYmd());
+  const [barberos, setBarberos] = useState([]);
+  const [servicios, setServicios] = useState([]);
+  const [citas, setCitas] = useState(null);
+  const [nueva, setNueva] = useState(false);
+  const [detalle, setDetalle] = useState(null);
+
+  const cargar = useCallback(async () => {
+    setCitas(null);
+    const [b, s, c] = await Promise.all([
+      db.from('barberos').select('*').order('nombre'),
+      db.from('servicios').select('*').order('nombre'),
+      db.from('citas').select('*, servicios ( nombre, precio, duracion_min )').gte('fecha_hora', inicioDia(dia)).lte('fecha_hora', finDia(dia)).order('fecha_hora'),
+    ]);
+    setBarberos((b.data || []).filter((x) => x.activo !== false));
+    setServicios(s.data || []);
+    setCitas(c.data || []);
+  }, [dia]);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const esHoy = dia === hoyYmd();
+  const activas = (citas || []).filter((c) => c.estado !== 'cancelada');
+  const terminadas = activas.filter((c) => c.estado === 'finalizada');
+  const abierto = horarioDelDia(negocio.horario, dia);
+
+  return (
+    <>
+      <PageHeader titulo="Agenda" sub={<span className="first-letter:uppercase">{esHoy ? 'Hoy, ' : ''}{diaLargo(dia)}{abierto ? ` · ${abierto.abre} a ${abierto.cierra}` : ' · cerrado'}</span>}>
+        <div className="flex items-center rounded border border-line bg-card">
+          <button onClick={() => setDia(sumarDias(dia, -1))} className="p-2.5 hover:bg-paper" aria-label="Día anterior"><ChevronLeft size={18} /></button>
+          <input type="date" className="w-[132px] bg-transparent px-1 py-2 text-sm outline-none" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} />
+          <button onClick={() => setDia(sumarDias(dia, 1))} className="p-2.5 hover:bg-paper" aria-label="Día siguiente"><ChevronRight size={18} /></button>
+        </div>
+        {!esHoy && <button onClick={() => setDia(hoyYmd())} className="btn-ghost">Hoy</button>}
+        <button onClick={() => setNueva(true)} disabled={!barberos.length || !servicios.length} className="btn-rojo"><Plus size={16} /> Nueva cita</button>
+      </PageHeader>
+
+      {citas !== null && (barberos.length === 0 || servicios.length === 0) && <Primeros barberos={barberos.length} servicios={servicios.length} />}
+      {citas !== null && barberos.length > 0 && servicios.length > 0 && <LinkReservas slug={negocio.slug} />}
+
+      {citas === null ? <Cargando /> : barberos.length === 0 ? null : (
+        <>
+          <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-2">
+            <span><b className="text-ink">{activas.length}</b> {activas.length === 1 ? 'cita' : 'citas'}</span>
+            <span><b className="text-ink">{terminadas.length}</b> {terminadas.length === 1 ? 'terminada' : 'terminadas'}</span>
+            <span><b className="text-ink">{dinero(terminadas.reduce((a, c) => a + precioCita(c), 0))}</b> en servicios</span>
+          </div>
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+            {barberos.map((b) => {
+              const suyas = citas.filter((c) => c.barbero_id === b.id);
+              const descansa = abierto && !horarioDelDia(negocio.horario, dia, b);
+              return (
+                <section key={b.id} className="card flex min-h-[320px] w-[82vw] shrink-0 snap-start flex-col sm:w-72 md:flex-1">
+                  <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                    <h3 className="font-bold">{b.nombre}</h3>
+                    {descansa ? <Badge><Moon size={10} /> Descansa</Badge> : <span className="text-sm text-ink-3">{suyas.filter((c) => c.estado !== 'cancelada').length}</span>}
+                  </header>
+                  <div className="flex-1 space-y-2 p-2.5">
+                    {suyas.length === 0 && <p className="px-2 py-10 text-center text-sm text-ink-3">{descansa ? 'Día de descanso' : 'Sin citas este día'}</p>}
+                    {suyas.map((c) => {
+                      const e = ESTADOS[c.estado] || ESTADOS.pendiente;
+                      return (
+                        <button key={c.id} onClick={() => setDetalle(c)} className={`block w-full rounded-sm border border-l-[3px] border-line bg-card px-3 py-2.5 text-left transition hover:border-ink ${e.borde}`}>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-bold">{hora(c.fecha_hora)}</span>
+                            <span className="flex gap-1">{c.origen === 'web' && <Badge tono="rojo">Link</Badge>}{c.estado !== 'pendiente' && <Badge tono={e.tono}>{e.label}</Badge>}</span>
+                          </div>
+                          <p className="truncate font-medium">{c.cliente_nombre}</p>
+                          <p className="truncate text-sm text-ink-3">{c.servicios?.nombre || 'Servicio'}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+          {activas.length === 0 && esHoy && abierto && <Vacio titulo="Día tranquilo por ahora">Las citas que aparten tus clientes por link aparecerán aquí solitas.</Vacio>}
+        </>
+      )}
+
+      <NuevaCita abierto={nueva} onClose={() => setNueva(false)} onGuardada={(d) => (d === dia ? cargar() : setDia(d))}
+        barberos={barberos} servicios={servicios} diaInicial={dia} horario={negocio.horario} />
+      <DetalleCita cita={detalle} onClose={() => setDetalle(null)} onCambio={cargar} negocio={negocio} />
+    </>
+  );
+}

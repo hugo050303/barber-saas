@@ -1,69 +1,90 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { SesionProvider, useSesion } from './lib/sesion';
+import { Cargando } from './components/ui';
+import AppLayout from './components/AppLayout';
+import { RUTA_ADMIN } from './config';
 
-// Páginas
-import Sidebar from './components/Sidebar';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Agenda from './pages/Agenda';
-import Venta from './pages/Venta';
-import Servicios from './pages/Servicios';
-import Inventario from './pages/Inventario';
-import Equipo from './pages/Equipo';
-import Clientes from './pages/Clientes';
-import Gastos from './pages/Gastos';
-import Configuracion from './pages/Configuracion';
-import Nomina from './pages/Nomina';
-import ReservaPublica from './pages/ReservaPublica';
-import CorteCaja from './pages/CorteCaja'; // <--- NUEVA PÁGINA
+// Páginas públicas
+const Landing = lazy(() => import('./pages/Landing'));
+const Registro = lazy(() => import('./pages/Registro'));
+const Entrar = lazy(() => import('./pages/Entrar'));
+const CrearNegocio = lazy(() => import('./pages/CrearNegocio'));
+const Reserva = lazy(() => import('./pages/Reserva'));
+const NoEncontrado = lazy(() => import('./pages/NoEncontrado'));
+// Panel
+const Agenda = lazy(() => import('./pages/Agenda'));
+const Clientes = lazy(() => import('./pages/Clientes'));
+const Servicios = lazy(() => import('./pages/Servicios'));
+const Equipo = lazy(() => import('./pages/Equipo'));
+const Venta = lazy(() => import('./pages/Venta'));
+const CorteCaja = lazy(() => import('./pages/CorteCaja'));
+const Inventario = lazy(() => import('./pages/Inventario'));
+const Gastos = lazy(() => import('./pages/Gastos'));
+const Nomina = lazy(() => import('./pages/Nomina'));
+const Reportes = lazy(() => import('./pages/Reportes'));
+const Configuracion = lazy(() => import('./pages/Configuracion'));
+const Plan = lazy(() => import('./pages/Plan'));
+const Admin = lazy(() => import('./pages/Admin'));
 
-function App() {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+const PantallaCarga = () => <div className="flex min-h-screen items-center justify-center"><Cargando texto="Cargando…" /></div>;
 
-  useEffect(() => {
-    // Firebase avisa cuando el usuario inicia o cierra sesión
-    const unsubscribe = onAuthStateChanged(auth, (user) => { setSession(user); setLoading(false); });
-    return unsubscribe;
-  }, []);
-
-  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 text-slate-400">Cargando...</div>;
-
-  return (
-    <BrowserRouter>
-      {/* Notificaciones modernas */}
-      <Toaster position="top-right" toastOptions={{ className: 'rounded-xl shadow-lg border border-gray-100', duration: 3000 }} />
-
-      <Routes>
-        <Route path="/reservar" element={<ReservaPublica />} />
-
-        <Route path="/*" element={!session ? <Login /> : (
-          <div className="flex min-h-screen bg-gray-100">
-            <Sidebar />
-            <div className="flex-1 md:ml-64 transition-all duration-300">
-              <Routes>
-                <Route path="/" element={<Agenda />} />
-                <Route path="/panel" element={<Dashboard />} />
-                <Route path="/venta" element={<Venta />} />
-                <Route path="/corte" element={<CorteCaja />} /> {/* <--- NUEVA RUTA */}
-                <Route path="/servicios" element={<Servicios />} />
-                <Route path="/inventario" element={<Inventario />} />
-                <Route path="/barberos" element={<Equipo />} />
-                <Route path="/clientes" element={<Clientes />} />
-                <Route path="/gastos" element={<Gastos />} />
-                <Route path="/nomina" element={<Nomina />} />
-                <Route path="/configuracion" element={<Configuracion />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </div>
-          </div>
-        )} />
-      </Routes>
-    </BrowserRouter>
-  );
+// Solo usuarios con sesión y con negocio creado
+function ConNegocio({ children }) {
+  const { user, negocio, cargando, admin } = useSesion();
+  const loc = useLocation();
+  if (cargando) return <PantallaCarga />;
+  if (!user) return <Navigate to="/entrar" replace state={{ desde: loc.pathname }} />;
+  if (!negocio) return <Navigate to={admin ? RUTA_ADMIN : '/crear-negocio'} replace />;
+  return children;
 }
 
-export default App;
+// A quien no sea la cuenta administradora se le muestra un 404 (no se revela que el panel existe)
+function SoloAdmin({ children }) {
+  const { admin, cargando } = useSesion();
+  if (cargando) return <PantallaCarga />;
+  if (!admin) return <NoEncontrado />;
+  return children;
+}
+
+export default function App() {
+  return (
+    <SesionProvider>
+      <BrowserRouter>
+        <Toaster position="top-center" toastOptions={{
+          duration: 3000,
+          style: { background: '#1A1714', color: '#F5F2EC', borderRadius: 6, fontSize: 14 },
+        }} />
+        <Suspense fallback={<PantallaCarga />}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/registro" element={<Registro />} />
+            <Route path="/entrar" element={<Entrar />} />
+            <Route path="/crear-negocio" element={<CrearNegocio />} />
+            <Route path="/r/:slug" element={<Reserva />} />
+            <Route path="/reservar" element={<Navigate to="/" replace />} />
+
+            <Route path="/app" element={<ConNegocio><AppLayout /></ConNegocio>}>
+              <Route index element={<Agenda />} />
+              <Route path="clientes" element={<Clientes />} />
+              <Route path="servicios" element={<Servicios />} />
+              <Route path="equipo" element={<Equipo />} />
+              <Route path="venta" element={<Venta />} />
+              <Route path="corte" element={<CorteCaja />} />
+              <Route path="inventario" element={<Inventario />} />
+              <Route path="gastos" element={<Gastos />} />
+              <Route path="nomina" element={<Nomina />} />
+              <Route path="reportes" element={<Reportes />} />
+              <Route path="configuracion" element={<Configuracion />} />
+              <Route path="plan" element={<Plan />} />
+            </Route>
+
+            <Route path={RUTA_ADMIN} element={<SoloAdmin><Admin /></SoloAdmin>} />
+            <Route path="*" element={<NoEncontrado />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </SesionProvider>
+  );
+}

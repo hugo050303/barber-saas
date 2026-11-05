@@ -1,71 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-paper text-ink antialiased;
+    font-feature-settings: 'tnum' 1; /* números del mismo ancho: cuadran en tablas */
   }
-  a:hover {
-    color: #747bff;
+  ::selection { @apply bg-rojo text-white; }
+  input, select, textarea { @apply text-ink; }
+}
+
+@layer components {
+  /* Títulos con estilo de letrero: Archivo condensada */
+  .display { font-stretch: 68%; @apply font-extrabold uppercase tracking-tight leading-[0.95]; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3; }
+
+  .input {
+    @apply w-full rounded border border-line bg-card px-3 py-2.5 text-[15px] outline-none transition
+           placeholder:text-ink-3 focus:border-ink focus:ring-1 focus:ring-ink disabled:opacity-60;
   }
-  button {
-    background-color: #f9f9f9;
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-semibold transition
+           disabled:cursor-not-allowed disabled:opacity-50 active:translate-y-px;
   }
+  .btn-primary { @apply btn bg-ink text-paper hover:bg-ink-2; }
+  .btn-rojo { @apply btn bg-rojo text-white hover:bg-rojo-dark; }
+  .btn-ghost { @apply btn border border-line bg-card text-ink hover:border-ink; }
+  .btn-link { @apply btn px-0 py-0 text-ink-2 underline-offset-4 hover:text-ink hover:underline; }
+  .card { @apply rounded border border-line bg-card; }
+  .tabla th { @apply px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3; }
+  .tabla td { @apply border-t border-line px-4 py-3 align-middle; }
+}
+
+/* Entrada suave de cada pantalla */
+@keyframes entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.entrar { animation: entrar 0.28s ease-out both; }
+@keyframes brillo { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.esqueleto {
+  background: linear-gradient(90deg, #EDE7DD 0px, #F7F3EC 160px, #EDE7DD 320px);
+  background-size: 800px 100%; animation: brillo 1.3s linear infinite; border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) { .entrar, .esqueleto { animation: none; } }
+
+/* Franja de poste de barbero (detalle de marca) */
+.poste {
+  background: repeating-linear-gradient(-45deg, #B4322A 0 8px, #F5F2EC 8px 16px, #22324A 16px 24px, #F5F2EC 24px 32px);
 }

@@ -1,37 +1,151 @@
 rules_version = '2';
 
-// Reglas de seguridad de Firestore para barber-saas.
-// - Usuarios con sesión iniciada (dueño / staff): acceso total.
-// - Visitantes de la página pública /reservar: pueden ver barberos, servicios
-//   y el nombre del negocio, y crear citas y clientes. Nada más.
+// Reglas de seguridad de Firestore (multi-barbería).
+//
+// - Cada barbería vive en negocios/{uid del dueño} y sus datos en subcolecciones.
+//   Como el id del negocio ES el uid del dueño, revisar "¿es el dueño?" no cuesta lecturas.
+// - El público (página /r/{slug}) solo ve barberos, servicios, el perfil del negocio y los
+//   horarios ocupados (sin datos personales). Puede crear citas pendientes y su registro de cliente.
+// - El plan (gratis/pro) y su vigencia SOLO los cambia la cuenta administradora.
+// - Barberos por plan: Gratis 1 ("principal"), Pro 3 ("principal", "b2", "b3"), Plus ilimitados.
+// - Funciones de pago (caja, inventario, gastos, corte) solo con Pro o Plus vigente.
+// - Tope de barberías y registro abierto/cerrado: sistema/config (lo controla el admin).
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function staff() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.email == 'hugo050303@gmail.com'; }
+    function isOwner(nid) { return signedIn() && request.auth.uid == nid; }
+    function negocio(nid) { return get(/databases/$(database)/documents/negocios/$(nid)).data; }
+    function isPro(nid) {
+      let n = negocio(nid);
+      return n.plan in ['pro', 'plus'] && n.proHasta is timestamp && n.proHasta > request.time;
+    }
+    function camposProtegidos() { return ['plan', 'proHasta', 'ownerUid', 'slug', 'creado', 'fundador']; }
+    function puedeCrearBarbero(nid, id) {
+      return id == 'principal' || (isPro(nid) && (negocio(nid).plan == 'plus' || id in ['b2', 'b3']));
     }
 
-    match /barberos/{id}      { allow read: if true;  allow write: if staff(); }
-    match /servicios/{id}     { allow read: if true;  allow write: if staff(); }
-    match /configuracion/{id} { allow read: if true;  allow write: if staff(); }
-
-    match /citas/{id} {
-      allow read, update, delete: if staff();
-      allow create: if staff() || (
-        request.resource.data.estado == 'pendiente' &&
-        request.resource.data.cliente_nombre is string &&
-        request.resource.data.fecha_hora is string
-      );
+    // ---------- Sistema ----------
+    function regPath() { return /databases/$(database)/documents/sistema/registro; }
+    function cfgPath() { return /databases/$(database)/documents/sistema/config; }
+    function totalAntes() { return exists(regPath()) ? get(regPath()).data.total : 0; }
+    function registroPermitido(total) {
+      let abierto = exists(cfgPath()) ? get(cfgPath()).data.get('registroAbierto', true) : true;
+      let maximo = exists(cfgPath()) ? get(cfgPath()).data.get('maxNegocios', 100) : 100;
+      return isAdmin() || (abierto == true && total <= maximo);
+    }
+    // El contador solo sube de 1 en 1 y solo junto con el alta de un negocio nuevo
+    function altaDeNegocio() {
+      let uid = request.auth.uid;
+      return request.resource.data.ultimo == uid
+        && !exists(/databases/$(database)/documents/negocios/$(uid))
+        && existsAfter(/databases/$(database)/documents/negocios/$(uid));
     }
 
-    match /clientes/{id} {
-      allow read, update, delete: if staff();
-      allow create: if staff() || request.resource.data.nombre is string;
+    match /sistema/config {
+      allow get: if true;
+      allow write: if isAdmin();
+    }
+    match /sistema/registro {
+      allow get: if true;
+      allow create: if signedIn() && request.resource.data.total == 1 && altaDeNegocio();
+      allow update: if isAdmin() || (signedIn() && request.resource.data.total == resource.data.total + 1 && altaDeNegocio());
     }
 
-    // Todo lo demás (inventario, ventas_productos, gastos, cortes_caja): solo staff
-    match /{coleccion}/{id} {
-      allow read, write: if staff();
+    // ---------- Negocios ----------
+    match /negocios/{nid} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isOwner(nid)
+        && request.resource.data.ownerUid == nid
+        && request.resource.data.plan == 'gratis'
+        && request.resource.data.proHasta == null
+        && getAfter(regPath()).data.ultimo == nid
+        && getAfter(regPath()).data.total == totalAntes() + 1
+        && registroPermitido(getAfter(regPath()).data.total);
+      allow update: if isAdmin() || (isOwner(nid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposProtegidos())
+        && request.resource.data.get('galeria', []).size() <= 12);
+      allow delete: if isAdmin();
+
+      // Barberos: el id limita cuántos hay según el plan
+      match /barberos/{id} {
+        allow read: if true;
+        allow create: if isOwner(nid) && puedeCrearBarbero(nid, id);
+        allow update, delete: if isOwner(nid);
+      }
+      match /servicios/{id} { allow read: if true; allow write: if isOwner(nid); }
+
+      // Horarios ocupados: sin datos personales, el público los ve para no empalmar citas
+      match /ocupados/{id} {
+        allow read: if true;
+        allow update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || (
+          !exists(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
+          && existsAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
+          && request.resource.data.keys().hasOnly(['barbero_id', 'inicio', 'duracion'])
+          && request.resource.data.inicio == getAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id)).data.fecha_hora
+          && request.resource.data.barbero_id == getAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id)).data.barbero_id
+          && request.resource.data.duracion is int
+          && request.resource.data.duracion > 0 && request.resource.data.duracion <= 240);
+      }
+
+      match /citas/{id} {
+        allow read, update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || citaPublicaValida(nid, request.resource.data);
+      }
+
+      // Clientes: el id es el teléfono. El público solo puede crear uno nuevo, sin historial inflado.
+      match /clientes/{id} {
+        allow read, update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || (
+          request.resource.data.keys().hasOnly(['nombre', 'nombre_busqueda', 'telefono', 'notas', 'visitas', 'gastado', 'ultima', 'created_at'])
+          && request.resource.data.nombre is string && request.resource.data.nombre.size() <= 80
+          && request.resource.data.telefono == id && id.matches('^[0-9]{10}$')
+          && request.resource.data.visitas == 0 && request.resource.data.gastado == 0
+          && request.resource.data.ultima == null);
+      }
+
+      // Funciones Pro: el dueño siempre puede leer su historial; escribir requiere Pro vigente
+      match /inventario/{id}       { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /ventas_productos/{id} { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /gastos/{id}           { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /cortes_caja/{id}      { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
     }
+
+    function citaPublicaValida(nid, c) {
+      let barbero = /databases/$(database)/documents/negocios/$(nid)/barberos/$(c.barbero_id);
+      let servicio = /databases/$(database)/documents/negocios/$(nid)/servicios/$(c.servicio_id);
+      return c.keys().hasOnly(['cliente_nombre', 'cliente_telefono', 'fecha_hora', 'fin', 'duracion', 'precio', 'barbero_id', 'servicio_id', 'estado', 'origen', 'created_at'])
+        && c.estado == 'pendiente' && c.origen == 'web'
+        && c.cliente_nombre is string && c.cliente_nombre.size() > 0 && c.cliente_nombre.size() <= 80
+        && c.cliente_telefono is string && c.cliente_telefono.matches('^[0-9]{10}$')
+        && c.fecha_hora is string
+        && exists(barbero) && get(barbero).data.get('activo', true) != false
+        && exists(servicio) && c.precio == get(servicio).data.precio;
+    }
+
+    // slug -> negocio (para las URLs de reservas)
+    match /slugs/{slug} {
+      allow get: if true;
+      allow create: if signedIn()
+        && request.resource.data.negocioId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/negocios/$(request.auth.uid)).data.slug == slug;
+      allow update, delete: if isAdmin();
+    }
+
+    // Perfil del dueño (correo y WhatsApp: privado)
+    match /usuarios/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(uid) && request.resource.data.negocioId == uid
+        && existsAfter(/databases/$(database)/documents/negocios/$(uid));
+      allow update: if isAdmin() || (isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['negocioId']));
+      allow delete: if isAdmin();
+    }
+
+    // Todo lo demás (incluidas las colecciones viejas de la versión de un solo negocio): cerrado
   }
 }

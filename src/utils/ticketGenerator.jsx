@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 
-export const generarTicketVenta = (items, total, nombreNegocio, folio, direccion = "", telefono = "") => {
+export const generarTicketVenta = (items, total, nombreNegocio, folio, direccion = "", telefono = "", mensaje = "¡Gracias por su visita!") => {
   // Configuración: 58mm ancho (estándar impresoras térmicas pequeñas)
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -43,9 +43,9 @@ export const generarTicketVenta = (items, total, nombreNegocio, folio, direccion
   // Datos del Ticket
   doc.setFontSize(8);
   doc.text(`FOLIO: ${folio}`, margenIzq, y);
-  doc.text(new Date().toLocaleDateString(), margenIzq + anchoUtil, y, { align: "right" });
+  doc.text(new Date().toLocaleDateString("es-MX"), margenIzq + anchoUtil, y, { align: "right" });
   y += 4;
-  doc.text(new Date().toLocaleTimeString(), margenIzq + anchoUtil, y, { align: "right" });
+  doc.text(new Date().toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" }), margenIzq + anchoUtil, y, { align: "right" });
   y += 2;
 
   // --- 2. TABLA DE PRODUCTOS ---
@@ -104,7 +104,7 @@ export const generarTicketVenta = (items, total, nombreNegocio, folio, direccion
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL:", margenIzq + 15, y, { align: "right" });
-  doc.text(`$${total}`, margenIzq + anchoUtil, y, { align: "right" });
+  doc.text(`$${Number(total).toFixed(2)}`, margenIzq + anchoUtil, y, { align: "right" });
   
   y += 2;
   doc.setFontSize(7);
@@ -112,7 +112,8 @@ export const generarTicketVenta = (items, total, nombreNegocio, folio, direccion
   
   // Mensaje final (Pie de página)
   y += 8;
-  doc.text("¡Gracias por su visita!", centro, y, { align: "center" });
+  doc.text(doc.splitTextToSize(mensaje || "¡Gracias por su visita!", 50), centro, y, { align: "center" });
+  y += 3;
   y += 4;
   doc.setFontSize(6);
   doc.text("Este no es un comprobante fiscal", centro, y, { align: "center" });

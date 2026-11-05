@@ -25,3 +25,6 @@ dist-ssr
 
 # Variables de entorno (no subir claves)
 .env
+
+# Emuladores de Firebase
+*-debug.log

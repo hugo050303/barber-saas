@@ -14,6 +14,8 @@
 // - `servicios ( ... )` en el select trae el documento relacionado usando el
 //   campo `servicio_id` (nombre de la colección sin la "s" final + "_id").
 // - Las fechas se guardan como texto ISO (ej. "2026-11-05T18:30:00.000Z").
+// - Multi-negocio: cada barbería guarda sus datos en negocios/{id}/<colección>.
+//   Llama a usarNegocio(id) al iniciar sesión (o al abrir una página pública de reservas).
 
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where,
@@ -39,6 +41,16 @@ const DEFAULTS = {
   gastos: () => ({ fecha: new Date().toISOString() }),
   cortes_caja: () => ({ fecha: new Date().toISOString() }),
 };
+
+let negocioActual = null;
+export function usarNegocio(id) { negocioActual = id; }
+export function negocioId() { return negocioActual; }
+
+// Ruta de la colección dentro del negocio activo
+export function ruta(table) {
+  if (!negocioActual) throw new Error('No hay negocio activo');
+  return `negocios/${negocioActual}/${table}`;
+}
 
 const RANGE_OPS = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
 
@@ -141,7 +153,7 @@ class QueryBuilder {
   async fetchRows() {
     const idF = this.idFilter();
     if (idF) {
-      const snap = await getDoc(doc(firestore, this.table, String(idF.value)));
+      const snap = await getDoc(doc(firestore, ruta(this.table), String(idF.value)));
       const rows = snap.exists() ? [{ id: snap.id, ...snap.data() }] : [];
       return rows.filter((r) => this.filters.every((f) => matches(r, f)));
     }
@@ -153,7 +165,7 @@ class QueryBuilder {
       ? ranges.map((f) => where(f.field, RANGE_OPS[f.op], f.value))
       : [];
 
-    const snap = await getDocs(query(collection(firestore, this.table), ...constraints));
+    const snap = await getDocs(query(collection(firestore, ruta(this.table)), ...constraints));
     return snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((r) => this.filters.every((f) => matches(r, f)));
@@ -164,7 +176,7 @@ class QueryBuilder {
 
     for (const rel of parseEmbeds(this.columns)) {
       const fk = rel.replace(/s$/, '') + '_id';
-      const relSnap = await getDocs(collection(firestore, rel));
+      const relSnap = await getDocs(collection(firestore, ruta(rel)));
       const byId = new Map(relSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
       rows = rows.map((r) => ({ ...r, [rel]: r[fk] != null ? byId.get(String(r[fk])) || null : null }));
     }
@@ -189,7 +201,7 @@ class QueryBuilder {
         created_at: new Date().toISOString(),
         ...normalize(this.table, row),
       };
-      const ref = await addDoc(collection(firestore, this.table), data);
+      const ref = await addDoc(collection(firestore, ruta(this.table)), data);
       created.push({ id: ref.id, ...data });
     }
     return this.returnRows || this.singleMode ? this.finish(created) : null;
@@ -203,7 +215,7 @@ class QueryBuilder {
       : await this.fetchRows();
 
     for (const { id } of targets) {
-      const ref = doc(firestore, this.table, id);
+      const ref = doc(firestore, ruta(this.table), id);
       if (kind === 'delete') await deleteDoc(ref);
       else await setDoc(ref, normalize(this.table, this.values), { merge: true });
     }

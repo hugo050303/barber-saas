@@ -1,37 +1,103 @@
 rules_version = '2';
 
-// Reglas de seguridad de Firestore para barber-saas.
-// - Usuarios con sesión iniciada (dueño / staff): acceso total.
-// - Visitantes de la página pública /reservar: pueden ver barberos, servicios
-//   y el nombre del negocio, y crear citas y clientes. Nada más.
+// Reglas de seguridad de Firestore (multi-negocio).
+//
+// - Cada barbería vive en negocios/{negocioId} y sus datos en subcolecciones.
+// - Solo el dueño (ownerUid) puede leer/escribir los datos privados de su negocio.
+// - El público (página de reservas /r/{slug}) solo ve barberos, servicios, el perfil
+//   del negocio y los horarios ocupados (sin datos personales), y puede crear citas.
+// - El plan (gratis/pro) y su vigencia SOLO los cambia la cuenta administradora.
+// - Funciones Pro (caja, inventario, gastos, corte) solo se pueden escribir con Pro vigente.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function staff() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.email == 'hugo050303@gmail.com'; }
+    function negocio(nid) { return get(/databases/$(database)/documents/negocios/$(nid)).data; }
+    function isOwner(nid) { return signedIn() && negocio(nid).ownerUid == request.auth.uid; }
+    function isPro(nid) {
+      let n = negocio(nid);
+      return n.plan == 'pro' && n.proHasta is timestamp && n.proHasta > request.time;
+    }
+    function camposProtegidos() { return ['plan', 'proHasta', 'ownerUid', 'slug', 'creado']; }
+
+    match /negocios/{nid} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.plan == 'gratis'
+        && request.resource.data.proHasta == null
+        && !exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+      allow update: if isAdmin() || (
+        signedIn() && resource.data.ownerUid == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposProtegidos()));
+      allow delete: if isAdmin();
+
+      // Públicos de lectura
+      match /barberos/{id}  { allow read: if true; allow write: if isOwner(nid); }
+      match /servicios/{id} { allow read: if true; allow write: if isOwner(nid); }
+
+      // Horarios ocupados: sin datos personales, el público los ve para no empalmar citas
+      match /ocupados/{id} {
+        allow read: if true;
+        allow update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || (
+          !exists(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
+          && existsAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
+          && request.resource.data.keys().hasOnly(['barbero_id', 'inicio', 'duracion'])
+          && request.resource.data.inicio == getAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id)).data.fecha_hora
+          && request.resource.data.barbero_id == getAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id)).data.barbero_id
+          && request.resource.data.duracion is int
+          && request.resource.data.duracion > 0 && request.resource.data.duracion <= 240);
+      }
+
+      match /citas/{id} {
+        allow read, update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || (
+          request.resource.data.estado == 'pendiente'
+          && request.resource.data.origen == 'web'
+          && request.resource.data.cliente_nombre is string
+          && request.resource.data.cliente_nombre.size() > 0
+          && request.resource.data.cliente_nombre.size() <= 80
+          && request.resource.data.fecha_hora is string
+          && exists(/databases/$(database)/documents/negocios/$(nid)/barberos/$(request.resource.data.barbero_id))
+          && exists(/databases/$(database)/documents/negocios/$(nid)/servicios/$(request.resource.data.servicio_id)));
+      }
+
+      match /clientes/{id} {
+        allow read, update, delete: if isOwner(nid);
+        allow create: if isOwner(nid) || (
+          request.resource.data.nombre is string && request.resource.data.nombre.size() <= 80
+          && request.resource.data.telefono == id);
+      }
+
+      // Funciones Pro: el dueño siempre puede leer su historial; escribir requiere Pro vigente
+      match /inventario/{id}       { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /ventas_productos/{id} { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /gastos/{id}           { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+      match /cortes_caja/{id}      { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
     }
 
-    match /barberos/{id}      { allow read: if true;  allow write: if staff(); }
-    match /servicios/{id}     { allow read: if true;  allow write: if staff(); }
-    match /configuracion/{id} { allow read: if true;  allow write: if staff(); }
-
-    match /citas/{id} {
-      allow read, update, delete: if staff();
-      allow create: if staff() || (
-        request.resource.data.estado == 'pendiente' &&
-        request.resource.data.cliente_nombre is string &&
-        request.resource.data.fecha_hora is string
-      );
+    // slug -> negocio (para las URLs de reservas)
+    match /slugs/{slug} {
+      allow get: if true;
+      allow create: if signedIn()
+        && getAfter(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.slug == slug;
+      allow update, delete: if isAdmin();
     }
 
-    match /clientes/{id} {
-      allow read, update, delete: if staff();
-      allow create: if staff() || request.resource.data.nombre is string;
+    // Perfil del dueño (correo y WhatsApp: privado)
+    match /usuarios/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid
+        && getAfter(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.ownerUid == uid;
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['negocioId']));
+      allow delete: if isAdmin();
     }
 
-    // Todo lo demás (inventario, ventas_productos, gastos, cortes_caja): solo staff
-    match /{coleccion}/{id} {
-      allow read, write: if staff();
-    }
+    // Todo lo demás (incluidas las colecciones viejas de la versión de un solo negocio): cerrado
   }
 }

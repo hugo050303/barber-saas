@@ -1,133 +1,102 @@
-import React, { useEffect, useState } from 'react';
-import { db } from '../db';
+import { useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import toast from 'react-hot-toast';
+import { auth, firestore } from '../firebase';
+import { useSesion } from '../lib/sesion';
+import { soloDigitos } from '../lib/formato';
+import { PageHeader, Field } from '../components/ui';
+import { HORARIO_DEFAULT } from '../config';
 
-const Configuracion = () => {
-  const [loading, setLoading] = useState(true);
+const DIAS = [[1, 'Lun'], [2, 'Mar'], [3, 'Mié'], [4, 'Jue'], [5, 'Vie'], [6, 'Sáb'], [0, 'Dom']];
+
+function Seccion({ titulo, texto, children }) {
+  return (
+    <section className="grid gap-4 border-b border-line py-8 first:pt-0 md:grid-cols-[240px_1fr] md:gap-10">
+      <div><h2 className="text-lg font-bold">{titulo}</h2>{texto && <p className="mt-1 text-sm text-ink-2">{texto}</p>}</div>
+      <div className="max-w-xl">{children}</div>
+    </section>
+  );
+}
+
+export default function Configuracion() {
+  const { negocio, user } = useSesion();
+  const h0 = { ...HORARIO_DEFAULT, ...(negocio.horario || {}) };
+  const [f, setF] = useState({
+    nombre: negocio.nombre || '', direccion: negocio.direccion || '', whatsapp: negocio.whatsapp || '',
+    telefono: negocio.telefono || '', mensaje_ticket: negocio.mensaje_ticket || '',
+  });
+  const [horario, setHorario] = useState(h0);
   const [guardando, setGuardando] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
-  // Datos del formulario
-  const [nombre, setNombre] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [mensaje, setMensaje] = useState('');
-
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  async function fetchConfig() {
-    setLoading(true);
-    // Siempre pedimos la fila con ID 1
-    const { data, error } = await db
-      .from('configuracion')
-      .select('*')
-      .eq('id', 1) 
-      .single();
-
-    if (error) {
-      console.error('Error cargando config:', error);
-    } else if (data) {
-      setNombre(data.nombre_negocio);
-      setDireccion(data.direccion || '');
-      setTelefono(data.telefono || '');
-      setMensaje(data.mensaje_ticket || '');
-    }
-    setLoading(false);
-  }
-
-  async function guardarCambios(e) {
+  async function guardar(e) {
     e.preventDefault();
+    if (aMin(horario.cierra) <= aMin(horario.abre)) return toast.error('La hora de cierre debe ser después de la de apertura.');
+    if (horario.dias.length === 0) return toast.error('Elige al menos un día de trabajo.');
     setGuardando(true);
-
-    const { error } = await db
-      .from('configuracion')
-      .update({ 
-        nombre_negocio: nombre,
-        direccion: direccion,
-        telefono: telefono,
-        mensaje_ticket: mensaje
-      })
-      .eq('id', 1);
-
-    if (error) {
-      alert('Error al guardar: ' + error.message);
-    } else {
-      alert('✅ ¡Información actualizada correctamente!');
-      // Opcional: Recargar la página para ver cambios si afectan el menú
-      window.location.reload(); 
-    }
+    try {
+      await updateDoc(doc(firestore, 'negocios', negocio.id), {
+        nombre: f.nombre.trim(), direccion: f.direccion.trim(), whatsapp: soloDigitos(f.whatsapp), telefono: soloDigitos(f.telefono),
+        mensaje_ticket: f.mensaje_ticket.trim(), horario,
+      });
+      toast.success('Cambios guardados');
+    } catch { toast.error('No se pudieron guardar los cambios.'); }
     setGuardando(false);
   }
 
-  if (loading) return <div className="p-8">Cargando configuración...</div>;
+  const aMin = (s) => { const [a, b] = s.split(':').map(Number); return a * 60 + b; };
+  const toggleDia = (d) => setHorario({ ...horario, dias: horario.dias.includes(d) ? horario.dias.filter((x) => x !== d) : [...horario.dias, d] });
+
+  async function cambiarPassword() {
+    try { auth.languageCode = 'es'; await sendPasswordResetEmail(auth, user.email); toast.success(`Te mandamos un enlace a ${user.email}`); }
+    catch { toast.error('No se pudo enviar el correo.'); }
+  }
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-slate-800 mb-6">⚙️ Configuración del Negocio</h1>
+    <>
+      <PageHeader titulo="Configuración" />
+      <form onSubmit={guardar}>
+        <Seccion titulo="Tu barbería" texto="Así te ven tus clientes en la página de reservas.">
+          <div className="space-y-4">
+            <Field label="Nombre"><input className="input" required maxLength={60} value={f.nombre} onChange={set('nombre')} /></Field>
+            <Field label="Dirección"><input className="input" maxLength={120} placeholder="Av. Juárez 120, Centro" value={f.direccion} onChange={set('direccion')} /></Field>
+            <Field label="WhatsApp" hint="Tus clientes te escriben a este número desde la página de reservas."><input className="input" inputMode="numeric" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
+            <Field label="Link de reservas" hint="El link no cambia aunque cambies el nombre."><input className="input bg-paper" readOnly value={`${window.location.origin}/r/${negocio.slug}`} onFocus={(e) => e.target.select()} /></Field>
+          </div>
+        </Seccion>
 
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden max-w-2xl">
-        <div className="p-6 bg-slate-900 text-white">
-            <h2 className="text-xl font-bold">Identidad de la Marca</h2>
-            <p className="text-slate-400 text-sm">Esta información aparecerá en los reportes y en la barra lateral.</p>
+        <Seccion titulo="Horario" texto="Solo se ofrecen horas dentro de este horario en tu página de reservas.">
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-1.5">
+              {DIAS.map(([d, n]) => (
+                <button type="button" key={d} onClick={() => toggleDia(d)}
+                  className={`w-12 rounded border py-2 text-sm font-semibold ${horario.dias.includes(d) ? 'border-ink bg-ink text-paper' : 'border-line bg-card text-ink-3'}`}>{n}</button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Abre"><input className="input" type="time" required value={horario.abre} onChange={(e) => setHorario({ ...horario, abre: e.target.value })} /></Field>
+              <Field label="Cierra"><input className="input" type="time" required value={horario.cierra} onChange={(e) => setHorario({ ...horario, cierra: e.target.value })} /></Field>
+              <Field label="Citas cada"><select className="input" value={horario.intervalo} onChange={(e) => setHorario({ ...horario, intervalo: Number(e.target.value) })}>{[15, 20, 30, 45, 60].map((m) => <option key={m} value={m}>{m} min</option>)}</select></Field>
+            </div>
+          </div>
+        </Seccion>
+
+        <Seccion titulo="Ticket" texto="Datos que salen impresos en el ticket de Caja.">
+          <div className="space-y-4">
+            <Field label="Teléfono en el ticket"><input className="input" inputMode="numeric" value={f.telefono} onChange={(e) => setF({ ...f, telefono: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
+            <Field label="Mensaje al pie"><input className="input" maxLength={80} value={f.mensaje_ticket} onChange={set('mensaje_ticket')} /></Field>
+          </div>
+        </Seccion>
+
+        <div className="sticky bottom-0 -mx-4 border-t border-line bg-paper/95 px-4 py-4 backdrop-blur md:mx-0 md:px-0">
+          <button className="btn-primary px-8 py-3" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</button>
         </div>
+      </form>
 
-        <form onSubmit={guardarCambios} className="p-8 space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="col-span-2">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Nombre del Negocio</label>
-                    <input 
-                        type="text" 
-                        required
-                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={nombre}
-                        onChange={e => setNombre(e.target.value)}
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono de Contacto</label>
-                    <input 
-                        type="text" 
-                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={telefono}
-                        onChange={e => setTelefono(e.target.value)}
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Dirección</label>
-                    <input 
-                        type="text" 
-                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={direccion}
-                        onChange={e => setDireccion(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Mensaje en Ticket (Pie de página)</label>
-                <textarea 
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none"
-                    placeholder="Gracias por su preferencia..."
-                    value={mensaje}
-                    onChange={e => setMensaje(e.target.value)}
-                ></textarea>
-            </div>
-
-            <div className="pt-4 border-t border-gray-100 flex justify-end">
-                <button 
-                    type="submit" 
-                    disabled={guardando}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-transform active:scale-95 disabled:bg-gray-400">
-                    {guardando ? 'Guardando...' : '💾 Guardar Cambios'}
-                </button>
-            </div>
-        </form>
-      </div>
-    </div>
+      <Seccion titulo="Tu cuenta" texto={user.email}>
+        <button onClick={cambiarPassword} className="btn-ghost">Cambiar contraseña</button>
+      </Seccion>
+    </>
   );
-};
-
-export default Configuracion;
+}

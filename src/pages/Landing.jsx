@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Link2, CalendarDays, Calculator, Wallet, MessageCircle } from 'lucide-react';
-import { Logo } from '../components/ui';
+import { Logo, HechoPor } from '../components/ui';
+import { linkWhatsApp } from '../lib/formato';
 import { useSesion } from '../lib/sesion';
 import { useEffect, useState } from 'react';
-import { MARCA, PLANES, FUNDADOR, MAX_FOTOS_GALERIA } from '../config';
+import { MARCA, PLANES, FUNDADOR, MAX_FOTOS_GALERIA, EMPRESA, WHATSAPP_VENTAS } from '../config';
 import { configSistema } from '../lib/negocio';
 
 const FUNCIONES = [
@@ -68,7 +69,15 @@ function Maqueta() {
 }
 
 export default function Landing() {
-  const { user } = useSesion();
+  const { user, cargando } = useSesion();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (cargando || !new URLSearchParams(window.location.search).has('origen')) return;
+    let ultima = null;
+    try { ultima = localStorage.getItem('ultimaReserva'); } catch { /* sin almacenamiento */ }
+    if (user) nav('/app', { replace: true });
+    else if (ultima) nav(`/r/${ultima}`, { replace: true });
+  }, [cargando, user, nav]);
   const [fundadoresQuedan, setFundadoresQuedan] = useState(null);
   useEffect(() => { configSistema().then((c) => setFundadoresQuedan(Math.max(0, FUNDADOR.lugares - (c.fundadoresUsados || 0)))); }, []);
   return (
@@ -208,8 +217,9 @@ export default function Landing() {
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-ink-3 md:flex-row md:items-center md:justify-between md:px-8">
           <Logo />
-          <p className="flex items-center gap-1.5"><MessageCircle size={14} /> Soporte por WhatsApp para clientes Pro</p>
-          <p>© {new Date().getFullYear()} {MARCA}</p>
+          <HechoPor />
+          <a href={linkWhatsApp(WHATSAPP_VENTAS, `Hola, tengo una pregunta sobre ${MARCA}.`)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-ink"><MessageCircle size={14} /> ¿Dudas? Escríbenos por WhatsApp</a>
+          <p>© {new Date().getFullYear()} {EMPRESA.nombre}</p>
         </div>
       </footer>
     </div>

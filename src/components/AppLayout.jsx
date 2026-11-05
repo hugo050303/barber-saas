@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { auth } from '../firebase';
 import { useSesion } from '../lib/sesion';
-import { Logo } from './ui';
+import { Logo, HechoPor } from './ui';
+import BotonInstalar from './BotonInstalar';
 import { RUTA_ADMIN } from '../config';
 
 const NAV = [
@@ -69,9 +70,11 @@ function Navegacion({ onNavegar }) {
           Pasar a Pro →
         </Link>
       )}
+      <BotonInstalar className="mx-3 mb-3 flex items-center justify-center gap-2 rounded border border-paper/20 px-3 py-2.5 text-sm font-semibold text-paper hover:bg-paper/10" />
       <button onClick={() => signOut(auth)} className="flex items-center gap-3 border-t border-paper/10 px-5 py-3.5 text-sm text-paper/60 hover:text-paper">
         <LogOut size={16} /> Cerrar sesión
       </button>
+      <HechoPor claro className="px-5 pb-4" />
     </div>
   );
 }

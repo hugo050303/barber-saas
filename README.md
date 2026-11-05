@@ -11,12 +11,12 @@ Hecho con React + Vite + Tailwind y **Firebase** (Firestore + Authentication). S
 - **Gratis:** agenda, reservas por link, clientes, servicios y 1 barbero.
 - **Pro ($299 MXN/mes o $2,990 al año):** hasta 3 barberos, caja, inventario, gastos, corte, nómina, reportes y fotos.
 - **Plus ($499 MXN/mes o $4,990 al año):** todo lo de Pro con barberos ilimitados y foto de cada barbero.
-- **Precio fundador:** las primeras 20 barberías pagan Pro a $199/mes de por vida (se marca en `/admin`).
-- El cobro es manual: el dueño te escribe desde "Pasar a Pro", te paga y tú le activas el mes en **`/admin`**
-  (solo la cuenta configurada en `ADMIN_EMAIL` puede entrar).
+- **Precio fundador:** las primeras 20 barberías pagan Pro a $199/mes de por vida (se marca en tu panel de administración).
+- El cobro es manual: el dueño te escribe desde "Pasar a Pro", te paga y tú le activas el mes en tu **panel de administración**
+  (dirección en `RUTA_ADMIN`, hoy `/somos053`; solo la cuenta `ADMIN_EMAIL` puede entrar, los demás ven un 404).
 - Si el Pro vence, la cuenta regresa a Gratis sin perder datos.
 - Los dueños se registran solos, con **Google** o con correo y contraseña.
-- **Tope de registros:** en `/admin` puedes cerrar el registro o fijar cuántas barberías caben (por defecto 100).
+- **Tope de registros:** en tu panel de administración puedes cerrar el registro o fijar cuántas barberías caben (por defecto 100).
   Lo respetan las reglas de seguridad, no solo la pantalla.
 
 ## Activar "Entrar con Google"

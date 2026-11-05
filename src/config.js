@@ -14,7 +14,11 @@ export const FUNDADOR = { precio: 199, lugares: 20 };
 // Ids de documento que puede usar cada plan para sus barberos (así las reglas limitan cuántos hay)
 export const SLOTS_BARBEROS = ['principal', 'b2', 'b3'];
 
-// Correo de la cuenta administradora (la que ve /admin y activa planes).
+// Dirección del panel de administración. Esconderla solo evita curiosos: la seguridad real
+// está en las reglas de Firebase, que solo dejan pasar a ADMIN_EMAIL.
+export const RUTA_ADMIN = '/somos053';
+
+// Correo de la cuenta administradora (la que ve el panel de administración y activa planes).
 // Debe coincidir con el correo usado en firestore.rules y storage.rules.
 export const ADMIN_EMAIL = 'hugo050303@gmail.com';
 

@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { SesionProvider, useSesion } from './lib/sesion';
 import { Cargando } from './components/ui';
 import AppLayout from './components/AppLayout';
+import { RUTA_ADMIN } from './config';
 
 // Páginas públicas
 const Landing = lazy(() => import('./pages/Landing'));
@@ -35,15 +36,15 @@ function ConNegocio({ children }) {
   const loc = useLocation();
   if (cargando) return <PantallaCarga />;
   if (!user) return <Navigate to="/entrar" replace state={{ desde: loc.pathname }} />;
-  if (!negocio) return <Navigate to={admin ? '/admin' : '/crear-negocio'} replace />;
+  if (!negocio) return <Navigate to={admin ? RUTA_ADMIN : '/crear-negocio'} replace />;
   return children;
 }
 
+// A quien no sea la cuenta administradora se le muestra un 404 (no se revela que el panel existe)
 function SoloAdmin({ children }) {
-  const { user, admin, cargando } = useSesion();
+  const { admin, cargando } = useSesion();
   if (cargando) return <PantallaCarga />;
-  if (!user) return <Navigate to="/entrar" replace />;
-  if (!admin) return <Navigate to="/app" replace />;
+  if (!admin) return <NoEncontrado />;
   return children;
 }
 
@@ -79,7 +80,7 @@ export default function App() {
               <Route path="plan" element={<Plan />} />
             </Route>
 
-            <Route path="/admin" element={<SoloAdmin><Admin /></SoloAdmin>} />
+            <Route path={RUTA_ADMIN} element={<SoloAdmin><Admin /></SoloAdmin>} />
             <Route path="*" element={<NoEncontrado />} />
           </Routes>
         </Suspense>

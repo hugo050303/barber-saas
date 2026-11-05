@@ -8,6 +8,7 @@ import {
 import { auth } from '../firebase';
 import { useSesion } from '../lib/sesion';
 import { Logo } from './ui';
+import { RUTA_ADMIN } from '../config';
 
 const NAV = [
   { grupo: 'Día a día', items: [
@@ -55,7 +56,7 @@ function Navegacion({ onNavegar }) {
         <div className="mt-4 border-t border-paper/10 pt-4">
           <NavLink to="/app/configuracion" className={link} onClick={onNavegar}><Settings size={17} strokeWidth={1.75} /> Configuración</NavLink>
           {pro && <NavLink to="/app/plan" className={link} onClick={onNavegar}><Crown size={17} strokeWidth={1.75} /> Tu plan</NavLink>}
-          {admin && <NavLink to="/admin" className={link} onClick={onNavegar}><Shield size={17} strokeWidth={1.75} /> Administración</NavLink>}
+          {admin && <NavLink to={RUTA_ADMIN} className={link} onClick={onNavegar}><Shield size={17} strokeWidth={1.75} /> Administración</NavLink>}
           {negocio && (
             <a href={`/r/${negocio.slug}`} target="_blank" rel="noreferrer" className={link({})}>
               <ExternalLink size={17} strokeWidth={1.75} /> Mi página de reservas

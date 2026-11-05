@@ -49,6 +49,12 @@ function ControlRegistro() {
 }
 
 export default function Admin() {
+  useEffect(() => {
+    // Que los buscadores no indexen el panel
+    const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex, nofollow';
+    document.head.appendChild(m); document.title = 'Administración';
+    return () => m.remove();
+  }, []);
   const { negocio } = useSesion();
   const [negocios, setNegocios] = useState(null);
   const [q, setQ] = useState('');

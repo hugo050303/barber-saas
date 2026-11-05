@@ -9,6 +9,7 @@ import { soloDigitos } from '../lib/formato';
 import AuthShell from '../components/AuthShell';
 import RegistroCerrado from '../components/RegistroCerrado';
 import { Field, Cargando } from '../components/ui';
+import { RUTA_ADMIN } from '../config';
 
 // Para cuentas que ya existen (por ejemplo, entraron con Google) pero aún no tienen barbería
 export default function CrearNegocio() {
@@ -38,7 +39,7 @@ export default function CrearNegocio() {
   return (
     <AuthShell titulo="Un paso más" sub={`Entraste como ${user.email}. Cuéntanos de tu barbería.`}
       pie={<div className="flex flex-col items-start gap-2">
-        {admin && <button onClick={() => nav('/admin')} className="font-semibold text-ink underline underline-offset-4">Ir a Administración</button>}
+        {admin && <button onClick={() => nav(RUTA_ADMIN)} className="font-semibold text-ink underline underline-offset-4">Ir a Administración</button>}
         <button onClick={() => signOut(auth)} className="underline underline-offset-4">Usar otra cuenta</button>
       </div>}>
       {sistema === null ? <Cargando texto="Un momento…" /> : !sistema.hayLugar && !admin ? <RegistroCerrado /> : (

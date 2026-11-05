@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import {
   CalendarDays, Users, Scissors, UserRound, ShoppingBag, Package, Receipt, Calculator,
@@ -35,7 +35,9 @@ function Navegacion({ onNavegar }) {
       <div className="px-5 pb-4 pt-5">
         <Logo claro />
         <p className="mt-4 truncate text-sm font-semibold text-paper">{negocio?.nombre}</p>
-        <p className="text-xs text-paper/50">{pro ? 'Plan Pro' : 'Plan Gratis'}</p>
+        {pro
+          ? <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-sm bg-paper/10 py-0.5 pl-1 pr-2 text-[11px] font-semibold uppercase tracking-wide text-paper"><span className="poste h-3 w-3 rounded-sm" />Pro</span>
+          : <p className="text-xs text-paper/50">Plan Gratis</p>}
       </div>
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         {NAV.map((g) => (
@@ -74,6 +76,7 @@ function Navegacion({ onNavegar }) {
 
 export default function AppLayout() {
   const [abierto, setAbierto] = useState(false);
+  const { pathname } = useLocation();
   return (
     <div className="min-h-screen md:pl-60">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-ink md:block"><Navegacion /></aside>
@@ -94,7 +97,7 @@ export default function AppLayout() {
       )}
 
       <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-        <Outlet />
+        <div key={pathname} className="entrar"><Outlet /></div>
       </main>
     </div>
   );

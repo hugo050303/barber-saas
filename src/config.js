@@ -13,5 +13,3 @@ export const WHATSAPP_VENTAS = '';
 
 // Límites del plan gratis
 export const LIMITE_BARBEROS_GRATIS = 1;
-
-export const HORARIO_DEFAULT = { abre: '10:00', cierra: '20:00', dias: [1, 2, 3, 4, 5, 6], intervalo: 30 };

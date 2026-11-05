@@ -1,13 +1,26 @@
 // Operaciones de negocio que tocan varias colecciones a la vez.
 import {
-  doc, getDoc, setDoc, writeBatch, collection, getDocs, query, where, serverTimestamp, deleteDoc,
+  doc, getDoc, setDoc, writeBatch, collection, getDocs, query, where, serverTimestamp, increment,
 } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { ruta } from '../db';
-import { slugify, soloDigitos, aMinutos, inicioDia, finDia } from './formato';
-import { HORARIO_DEFAULT } from '../config';
+import { slugify, soloDigitos, inicioDia, finDia, normalizar, ZONA_DEFAULT } from './formato';
+import { HORARIO_BASE } from './horario';
 
-// ---------- Alta de negocio ----------
+// ---------- Registro de barberías ----------
+// El id del negocio es el uid del dueño: así las reglas de seguridad saben quién es el dueño
+// sin hacer una lectura extra en cada consulta (más rápido y más barato).
+
+export async function configSistema() {
+  try {
+    const [c, r] = await Promise.all([getDoc(doc(firestore, 'sistema', 'config')), getDoc(doc(firestore, 'sistema', 'registro'))]);
+    const cfg = { registroAbierto: true, maxNegocios: 100, ...(c.exists() ? c.data() : {}) };
+    const total = r.exists() ? r.data().total || 0 : 0;
+    return { ...cfg, total, hayLugar: cfg.registroAbierto && total < cfg.maxNegocios };
+  } catch {
+    return { registroAbierto: true, maxNegocios: 100, total: 0, hayLugar: true };
+  }
+}
 
 async function slugLibre(nombre) {
   const base = slugify(nombre);
@@ -21,7 +34,7 @@ async function slugLibre(nombre) {
 
 export async function crearNegocio(user, { nombre, dueno, whatsapp }) {
   const slug = await slugLibre(nombre);
-  const negRef = doc(collection(firestore, 'negocios'));
+  const negRef = doc(firestore, 'negocios', user.uid);
   const batch = writeBatch(firestore);
   batch.set(negRef, {
     nombre: nombre.trim(),
@@ -31,7 +44,8 @@ export async function crearNegocio(user, { nombre, dueno, whatsapp }) {
     telefono: soloDigitos(whatsapp),
     direccion: '',
     mensaje_ticket: '¡Gracias por tu visita!',
-    horario: HORARIO_DEFAULT,
+    zona: ZONA_DEFAULT,
+    horario: HORARIO_BASE,
     plan: 'gratis',
     proHasta: null,
     creado: serverTimestamp(),
@@ -42,8 +56,11 @@ export async function crearNegocio(user, { nombre, dueno, whatsapp }) {
     nombre: dueno.trim(),
     email: user.email,
     whatsapp: soloDigitos(whatsapp),
+    proveedor: user.providerData?.[0]?.providerId || 'password',
     creado: serverTimestamp(),
   });
+  // Contador global de barberías (las reglas lo usan para respetar el tope de registros)
+  batch.set(doc(firestore, 'sistema', 'registro'), { total: increment(1), ultimo: user.uid }, { merge: true });
   await batch.commit();
   return negRef.id;
 }
@@ -76,75 +93,75 @@ export async function crearCita({ cliente, telefono, inicio, barbero, servicio, 
     fecha_hora: inicio,
     fin,
     duracion,
+    precio: Number(servicio.precio) || 0, // precio al momento de agendar (el historial no cambia si subes precios)
     barbero_id: barbero.id,
     servicio_id: servicio.id,
     estado: 'pendiente',
     origen, // 'web' | 'panel'
     created_at: new Date().toISOString(),
   });
-  batch.set(doc(firestore, ruta('ocupados'), citaRef.id), { barbero_id: barbero.id, inicio, duracion: Math.round(duracion) });
+  batch.set(doc(firestore, ruta('ocupados'), citaRef.id), { barbero_id: barbero.id, inicio, duracion });
   await batch.commit();
 
-  // Registrar al cliente (su id es el teléfono, así no se duplica). Si ya existe, no pasa nada.
+  // Registrar al cliente (su id es el teléfono, así no se duplica).
   const tel = soloDigitos(telefono);
   if (tel.length === 10) {
+    const ref = doc(firestore, ruta('clientes'), tel);
     try {
-      const ref = doc(firestore, ruta('clientes'), tel);
       if (origen === 'web') {
         // El público solo puede crear (no modificar): si ya existe, Firestore lo rechaza y lo ignoramos.
-        await setDoc(ref, { nombre: cliente.trim(), telefono: tel, notas: 'Llegó por reservas en línea', created_at: new Date().toISOString() });
+        await setDoc(ref, nuevoCliente(cliente, tel, 'Llegó por reservas en línea'));
       } else {
-        await setDoc(ref, { nombre: cliente.trim(), telefono: tel }, { merge: true });
+        const ya = await getDoc(ref);
+        await setDoc(ref, ya.exists() ? { nombre: cliente.trim(), nombre_busqueda: normalizar(cliente) } : nuevoCliente(cliente, tel, ''), { merge: true });
       }
     } catch { /* el cliente ya estaba registrado */ }
   }
   return citaRef.id;
 }
 
+export const nuevoCliente = (nombre, tel, notas) => ({
+  nombre: nombre.trim(), nombre_busqueda: normalizar(nombre), telefono: tel, notas,
+  visitas: 0, gastado: 0, ultima: null, created_at: new Date().toISOString(),
+});
+
+const precioDe = (cita) => Number(cita.precio ?? cita.servicios?.precio) || 0;
+
+// Cambia el estado y mantiene al día el resumen del cliente (visitas y gasto),
+// así la lista de clientes no tiene que leer todo el historial de citas.
 export async function cambiarEstadoCita(cita, estado) {
   const batch = writeBatch(firestore);
   batch.update(doc(firestore, ruta('citas'), cita.id), { estado });
   const ocRef = doc(firestore, ruta('ocupados'), cita.id);
   if (estado === 'cancelada') batch.delete(ocRef);
   else batch.set(ocRef, { barbero_id: cita.barbero_id, inicio: cita.fecha_hora, duracion: Math.round(Number(cita.duracion) || 30) });
+
+  const tel = soloDigitos(cita.cliente_telefono);
+  const antes = cita.estado === 'finalizada'; const despues = estado === 'finalizada';
+  if (tel.length === 10 && antes !== despues) {
+    const signo = despues ? 1 : -1;
+    batch.set(doc(firestore, ruta('clientes'), tel), {
+      nombre: cita.cliente_nombre, nombre_busqueda: normalizar(cita.cliente_nombre), telefono: tel,
+      visitas: increment(signo), gastado: increment(signo * precioDe(cita)),
+      ...(despues ? { ultima: cita.fecha_hora } : {}),
+    }, { merge: true });
+  }
   await batch.commit();
 }
 
 export async function eliminarCita(cita) {
+  if (cita.estado === 'finalizada') await cambiarEstadoCita(cita, 'cancelada');
   const batch = writeBatch(firestore);
   batch.delete(doc(firestore, ruta('citas'), cita.id));
   batch.delete(doc(firestore, ruta('ocupados'), cita.id));
   await batch.commit();
 }
 
-export async function ocupadosDelDia(fecha) {
+export async function ocupadosDelDia(ymd) {
   const snap = await getDocs(query(
     collection(firestore, ruta('ocupados')),
-    where('inicio', '>=', inicioDia(fecha)),
-    where('inicio', '<=', finDia(fecha)),
+    where('inicio', '>=', inicioDia(ymd)),
+    where('inicio', '<=', finDia(ymd)),
   ));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
-
-// Horarios libres de un barbero para una fecha y duración
-export function horariosLibres({ fecha, horario, duracion, ocupados, barberoId }) {
-  const h = { ...HORARIO_DEFAULT, ...(horario || {}) };
-  const d = new Date(fecha);
-  if (!h.dias.includes(d.getDay())) return [];
-  const paso = Number(h.intervalo) || 30;
-  const dur = Number(duracion) || 30;
-  const propios = ocupados.filter((o) => o.barbero_id === barberoId)
-    .map((o) => { const x = new Date(o.inicio).getTime(); return [x, x + (Number(o.duracion) || 30) * 60000]; });
-  const ahora = Date.now() + 15 * 60000; // al menos 15 min de anticipación
-  const libres = [];
-  for (let m = aMinutos(h.abre); m + dur <= aMinutos(h.cierra); m += paso) {
-    const ini = new Date(d); ini.setHours(Math.floor(m / 60), m % 60, 0, 0);
-    const a = ini.getTime(); const b = a + dur * 60000;
-    if (a < ahora) continue;
-    if (propios.some(([x, y]) => a < y && b > x)) continue;
-    libres.push(ini.toISOString());
-  }
-  return libres;
-}
-
-export { deleteDoc };

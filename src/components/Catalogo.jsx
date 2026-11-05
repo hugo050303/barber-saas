@@ -16,8 +16,10 @@ export function useColeccion(tabla, orden = 'nombre', asc = true) {
   return [filas, recargar];
 }
 
-export async function guardarFila(tabla, id, datos) {
-  const q = id ? db.from(tabla).update(datos).eq('id', id) : db.from(tabla).insert([datos]);
+// idNuevo: id fijo para un registro nuevo (por ejemplo el barbero "principal" del plan gratis)
+export async function guardarFila(tabla, id, datos, idNuevo) {
+  const destino = id || idNuevo;
+  const q = destino ? db.from(tabla).update(datos).eq('id', destino) : db.from(tabla).insert([datos]);
   const { error } = await q;
   if (error) { toast.error(error.code === 'permission-denied' ? 'Esta función requiere el plan Pro vigente.' : 'No se pudo guardar.'); return false; }
   toast.success(id ? 'Cambios guardados' : 'Agregado');
@@ -33,12 +35,12 @@ export async function borrarFila(tabla, id, pregunta) {
 }
 
 // Lista + modal de formulario genérico
-export function Catalogo({ tabla, filas, recargar, vacio, titulo, Formulario, columnas, puedeAgregar = true, bloqueo, textoAgregar = 'Agregar' }) {
+export function Catalogo({ tabla, filas, recargar, vacio, titulo, Formulario, columnas, puedeAgregar = true, bloqueo, textoAgregar = 'Agregar', idNuevo }) {
   const [editando, setEditando] = useState(null); // null | {} (nuevo) | fila
   if (filas === null) return <Cargando />;
   const cerrar = () => setEditando(null);
   const alGuardar = async (datos) => {
-    if (await guardarFila(tabla, editando.id, datos)) { cerrar(); recargar(); }
+    if (await guardarFila(tabla, editando.id, datos, idNuevo)) { cerrar(); recargar(); }
   };
   return (
     <>

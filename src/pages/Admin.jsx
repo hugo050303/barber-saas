@@ -1,19 +1,52 @@
 // Panel de administración (solo la cuenta ADMIN_EMAIL): ver barberías y activar planes.
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Search, MessageCircle, ExternalLink } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth, firestore } from '../firebase';
 import { useSesion } from '../lib/sesion';
-import { esPro } from '../lib/negocio';
-import { fechaCorta, linkWhatsApp } from '../lib/formato';
+import { esPro, configSistema } from '../lib/negocio';
 import { Logo, Badge, Cargando, Stat } from '../components/ui';
 import { PRECIO_PRO, MARCA } from '../config';
-import { dinero } from '../lib/formato';
+import { dinero, fechaCorta, linkWhatsApp } from '../lib/formato';
 
 const aFecha = (t) => (t?.toDate ? t.toDate() : t ? new Date(t) : null);
+
+// Abrir/cerrar el registro y fijar el tope de barberías (lo respetan las reglas de seguridad)
+function ControlRegistro() {
+  const [cfg, setCfg] = useState(null);
+  const [tope, setTope] = useState('');
+  const cargar = () => configSistema().then((c) => { setCfg(c); setTope(String(c.maxNegocios)); });
+  useEffect(() => { cargar(); }, []);
+  async function guardar(cambios) {
+    try { await setDoc(doc(firestore, 'sistema', 'config'), { registroAbierto: cfg.registroAbierto, maxNegocios: cfg.maxNegocios, ...cambios }); toast.success('Guardado'); cargar(); }
+    catch { toast.error('No se pudo guardar.'); }
+  }
+  if (!cfg) return null;
+  const pct = Math.min(100, Math.round((cfg.total / Math.max(1, cfg.maxNegocios)) * 100));
+  return (
+    <div className="card mt-6 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-bold">Registro de barberías</p>
+          <p className="mt-1 text-sm text-ink-2">{cfg.total} de {cfg.maxNegocios} lugares usados · {cfg.registroAbierto ? (cfg.hayLugar ? 'abierto' : 'lleno') : 'cerrado'}</p>
+        </div>
+        <button onClick={() => guardar({ registroAbierto: !cfg.registroAbierto })} className={cfg.registroAbierto ? 'btn-ghost' : 'btn-primary'}>
+          {cfg.registroAbierto ? 'Cerrar registro' : 'Abrir registro'}
+        </button>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-paper"><div className={`h-full ${pct >= 90 ? 'bg-rojo' : 'bg-ink'}`} style={{ width: `${pct}%` }} /></div>
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="block"><span className="mb-1 block text-sm font-semibold">Tope de barberías</span>
+          <input className="input w-32" type="number" min="1" value={tope} onChange={(e) => setTope(e.target.value)} /></label>
+        <button className="btn-ghost" disabled={!Number(tope) || Number(tope) === cfg.maxNegocios} onClick={() => guardar({ maxNegocios: Math.max(1, Math.round(Number(tope))) })}>Guardar tope</button>
+      </div>
+      <p className="mt-3 text-xs text-ink-3">El plan gratis de Firebase (Spark) aguanta alrededor de 25 a 50 barberías usándolo a diario. Antes de subir el tope, cambia Firebase al plan Blaze y pon una alerta de presupuesto.</p>
+    </div>
+  );
+}
 
 export default function Admin() {
   const { negocio } = useSesion();
@@ -31,6 +64,7 @@ export default function Admin() {
   useEffect(() => { cargar().catch(() => toast.error('No se pudo cargar la lista.')); }, []);
 
   async function darMeses(n, meses) {
+    // Si aún tiene Pro vigente, el tiempo se suma al final; si no, empieza hoy
     const base = esPro(n) ? aFecha(n.proHasta) : new Date();
     const hasta = new Date(base); hasta.setMonth(hasta.getMonth() + meses);
     if (!window.confirm(`¿Activar Pro a "${n.nombre}" hasta el ${fechaCorta(hasta)}?`)) return;
@@ -79,6 +113,7 @@ export default function Admin() {
               <Stat label="Ingreso mensual" valor={dinero(nPro * PRECIO_PRO)} nota="Pro vigentes × precio" />
               <Stat label="Nuevas (7 días)" valor={negocios.filter((n) => ahora - (aFecha(n.creado) || 0) < 7 * 86400000).length} />
             </div>
+            <ControlRegistro />
             <div className="mt-6 flex flex-col gap-3 md:flex-row">
               <div className="relative flex-1">
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />

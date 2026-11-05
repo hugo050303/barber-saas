@@ -4,6 +4,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, firestore } from '../firebase';
 import { usarNegocio } from '../db';
 import { esPro } from './negocio';
+import { usarZona } from './formato';
 import { ADMIN_EMAIL } from '../config';
 
 const Ctx = createContext(null);
@@ -32,7 +33,7 @@ export function SesionProvider({ children }) {
     usarNegocio(perfil.negocioId);
     setNegocio((n) => (n?.id === perfil.negocioId ? n : undefined));
     return onSnapshot(doc(firestore, 'negocios', perfil.negocioId),
-      (s) => setNegocio(s.exists() ? { id: s.id, ...s.data() } : null),
+      (s) => { if (s.exists()) usarZona(s.data().zona); setNegocio(s.exists() ? { id: s.id, ...s.data() } : null); },
       () => setNegocio(null));
   }, [perfil]);
 

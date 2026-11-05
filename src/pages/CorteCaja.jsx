@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { dinero, inicioDia, finDia, fechaLarga, fechaCorta, hora } from '../lib/formato';
+import { dinero, inicioDia, finDia, fechaLarga, fechaCorta, hora, hoyYmd } from '../lib/formato';
 import { PageHeader, SoloPro, Cargando, Field } from '../components/ui';
 
 export default function CorteCaja() {
@@ -14,16 +14,16 @@ export default function CorteCaja() {
   const [guardando, setGuardando] = useState(false);
 
   async function cargar() {
-    const hoy = new Date();
+    const hoy = hoyYmd();
     const [c, v, g, h] = await Promise.all([
-      db.from('citas').select('servicios(precio)').eq('estado', 'finalizada').gte('fecha_hora', inicioDia(hoy)).lte('fecha_hora', finDia(hoy)),
+      db.from('citas').select('precio, servicios(precio)').eq('estado', 'finalizada').gte('fecha_hora', inicioDia(hoy)).lte('fecha_hora', finDia(hoy)),
       db.from('ventas_productos').select('total').gte('fecha', inicioDia(hoy)).lte('fecha', finDia(hoy)),
       db.from('gastos').select('monto').gte('fecha', inicioDia(hoy)).lte('fecha', finDia(hoy)),
-      db.from('cortes_caja').select('*').order('fecha', { ascending: false }),
+      db.from('cortes_caja').select('*').order('fecha', { ascending: false }).limit(10),
     ]);
     const suma = (arr, f) => (arr || []).reduce((a, x) => a + (Number(f(x)) || 0), 0);
     setRes({
-      servicios: suma(c.data, (x) => x.servicios?.precio), nServicios: (c.data || []).length,
+      servicios: suma(c.data, (x) => x.precio ?? x.servicios?.precio), nServicios: (c.data || []).length,
       productos: suma(v.data, (x) => x.total), nVentas: (v.data || []).length,
       gastos: suma(g.data, (x) => x.monto),
     });

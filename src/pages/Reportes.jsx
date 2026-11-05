@@ -3,35 +3,35 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { dinero } from '../lib/formato';
+import { dinero, mesActual, sumarMeses, rangoMes, diasDelMes, nombreMes as nombreDelMes, partesZona } from '../lib/formato';
 import { PageHeader, SoloPro, Cargando, Stat } from '../components/ui';
 
 export default function Reportes() {
   const { pro } = useSesion();
-  const [mes, setMes] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [mes, setMes] = useState(() => mesActual());
   const [datos, setDatos] = useState(null);
 
   useEffect(() => {
     if (!pro) return;
     (async () => {
       setDatos(null);
-      const ini = new Date(mes.getFullYear(), mes.getMonth(), 1).toISOString();
-      const fin = new Date(mes.getFullYear(), mes.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+      const [ini, fin] = rangoMes(mes);
       const [c, v, g] = await Promise.all([
-        db.from('citas').select('fecha_hora, estado, origen, servicio_id, servicios(nombre, precio)').gte('fecha_hora', ini).lte('fecha_hora', fin),
+        db.from('citas').select('fecha_hora, estado, origen, precio, servicio_id, servicios(nombre, precio)').gte('fecha_hora', ini).lte('fecha_hora', fin),
         db.from('ventas_productos').select('total, fecha').gte('fecha', ini).lte('fecha', fin),
         db.from('gastos').select('monto, fecha').gte('fecha', ini).lte('fecha', fin),
       ]);
       const citas = c.data || [];
       const terminadas = citas.filter((x) => x.estado === 'finalizada');
-      const diasMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
+      const diasMes = diasDelMes(mes);
+      const precio = (x) => Number(x.precio ?? x.servicios?.precio) || 0;
       const porDia = Array.from({ length: diasMes }, (_, i) => ({ dia: i + 1, servicios: 0, productos: 0 }));
-      terminadas.forEach((x) => { porDia[new Date(x.fecha_hora).getDate() - 1].servicios += Number(x.servicios?.precio) || 0; });
-      (v.data || []).forEach((x) => { porDia[new Date(x.fecha).getDate() - 1].productos += Number(x.total) || 0; });
+      terminadas.forEach((x) => { porDia[partesZona(x.fecha_hora).d - 1].servicios += precio(x); });
+      (v.data || []).forEach((x) => { porDia[partesZona(x.fecha).d - 1].productos += Number(x.total) || 0; });
       const top = {};
       terminadas.forEach((x) => { const n = x.servicios?.nombre || 'Otro'; top[n] = (top[n] || 0) + 1; });
       const suma = (arr, k) => (arr || []).reduce((a, x) => a + (Number(x[k]) || 0), 0);
-      const ingServ = terminadas.reduce((a, x) => a + (Number(x.servicios?.precio) || 0), 0);
+      const ingServ = terminadas.reduce((a, x) => a + precio(x), 0);
       const ingProd = suma(v.data, 'total');
       const gastos = suma(g.data, 'monto');
       setDatos({
@@ -47,9 +47,9 @@ export default function Reportes() {
 
   if (!pro) return <><PageHeader titulo="Reportes" /><SoloPro titulo="Tu mes en números">Ingresos por servicios y productos, gastos, utilidad, servicios más pedidos y cuántas citas llegan por tu link.</SoloPro></>;
 
-  const mover = (n) => setMes(new Date(mes.getFullYear(), mes.getMonth() + n, 1));
-  const nombreMes = mes.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
-  const esActual = mes.getMonth() === new Date().getMonth() && mes.getFullYear() === new Date().getFullYear();
+  const mover = (n) => setMes(sumarMeses(mes, n));
+  const nombreMes = nombreDelMes(mes);
+  const esActual = mes === mesActual();
 
   return (
     <>

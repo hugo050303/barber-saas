@@ -27,7 +27,7 @@ const Configuracion = lazy(() => import('./pages/Configuracion'));
 const Plan = lazy(() => import('./pages/Plan'));
 const Admin = lazy(() => import('./pages/Admin'));
 
-const PantallaCarga = () => <div className="flex min-h-screen justify-center"><Cargando /></div>;
+const PantallaCarga = () => <div className="flex min-h-screen items-center justify-center"><Cargando texto="Cargando…" /></div>;
 
 // Solo usuarios con sesión y con negocio creado
 function ConNegocio({ children }) {

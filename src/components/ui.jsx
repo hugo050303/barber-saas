@@ -71,10 +71,19 @@ export function Vacio({ icono: Icono, titulo, children, accion }) {
   );
 }
 
-export function Cargando({ texto = 'Cargando…' }) {
+// Siluetas de carga (se sienten más rápidas que un texto de "Cargando")
+export function Cargando({ texto, filas = 4 }) {
+  if (texto) {
+    return <div className="flex items-center gap-2 py-8 text-sm text-ink-3"><Loader2 size={16} className="animate-spin" /> {texto}</div>;
+  }
   return (
-    <div className="flex items-center gap-2 py-16 text-sm text-ink-3">
-      <Loader2 size={16} className="animate-spin" /> {texto}
+    <div className="card divide-y divide-line" aria-busy="true" aria-label="Cargando">
+      {Array.from({ length: filas }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4">
+          <div className="flex-1 space-y-2"><div className="esqueleto h-3.5" style={{ width: `${55 - i * 7}%` }} /><div className="esqueleto h-3 w-1/3" /></div>
+          <div className="esqueleto h-4 w-16" />
+        </div>
+      ))}
     </div>
   );
 }

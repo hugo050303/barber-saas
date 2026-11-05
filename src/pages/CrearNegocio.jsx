@@ -1,22 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { auth } from '../firebase';
-import { crearNegocio } from '../lib/negocio';
+import { crearNegocio, configSistema } from '../lib/negocio';
 import { useSesion } from '../lib/sesion';
 import { soloDigitos } from '../lib/formato';
 import AuthShell from '../components/AuthShell';
+import RegistroCerrado from '../components/RegistroCerrado';
 import { Field, Cargando } from '../components/ui';
 
-// Para cuentas que ya existen pero aún no tienen barbería
+// Para cuentas que ya existen (por ejemplo, entraron con Google) pero aún no tienen barbería
 export default function CrearNegocio() {
   const { user, negocio, cargando, admin } = useSesion();
   const nav = useNavigate();
   const [f, setF] = useState({ negocio: '', nombre: '', whatsapp: '' });
   const [enviando, setEnviando] = useState(false);
+  const [sistema, setSistema] = useState(null);
 
-  if (cargando) return <div className="flex min-h-screen justify-center"><Cargando /></div>;
+  useEffect(() => { configSistema().then(setSistema); }, []);
+  useEffect(() => { if (user?.displayName) setF((x) => ({ ...x, nombre: x.nombre || user.displayName })); }, [user]);
+
+  if (cargando) return <div className="flex min-h-screen items-center justify-center"><Cargando texto="Cargando…" /></div>;
   if (!user) return <Navigate to="/entrar" replace />;
   if (negocio) return <Navigate to="/app" replace />;
 
@@ -27,7 +32,7 @@ export default function CrearNegocio() {
     try {
       await crearNegocio(user, { nombre: f.negocio, dueno: f.nombre, whatsapp: f.whatsapp });
       nav('/app', { replace: true });
-    } catch { toast.error('No pudimos crear tu barbería. Inténtalo de nuevo.'); setEnviando(false); }
+    } catch { toast.error('No pudimos crear tu barbería. Puede que ya no haya lugar; inténtalo más tarde.'); setEnviando(false); }
   }
 
   return (
@@ -36,12 +41,14 @@ export default function CrearNegocio() {
         {admin && <button onClick={() => nav('/admin')} className="font-semibold text-ink underline underline-offset-4">Ir a Administración</button>}
         <button onClick={() => signOut(auth)} className="underline underline-offset-4">Usar otra cuenta</button>
       </div>}>
-      <form onSubmit={enviar} className="space-y-4">
-        <Field label="Nombre de la barbería"><input className="input" required maxLength={60} value={f.negocio} onChange={(e) => setF({ ...f, negocio: e.target.value })} /></Field>
-        <Field label="Tu nombre"><input className="input" required maxLength={60} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
-        <Field label="WhatsApp de la barbería"><input className="input" required inputMode="numeric" placeholder="10 dígitos" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
-        <button className="btn-rojo w-full py-3" disabled={enviando}>{enviando ? 'Creando…' : 'Crear mi barbería'}</button>
-      </form>
+      {sistema === null ? <Cargando texto="Un momento…" /> : !sistema.hayLugar && !admin ? <RegistroCerrado /> : (
+        <form onSubmit={enviar} className="space-y-4">
+          <Field label="Nombre de la barbería"><input className="input" required maxLength={60} value={f.negocio} onChange={(e) => setF({ ...f, negocio: e.target.value })} /></Field>
+          <Field label="Tu nombre"><input className="input" required maxLength={60} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
+          <Field label="WhatsApp de la barbería"><input className="input" required inputMode="numeric" placeholder="10 dígitos" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
+          <button className="btn-rojo w-full py-3" disabled={enviando}>{enviando ? 'Creando…' : 'Crear mi barbería'}</button>
+        </form>
+      )}
     </AuthShell>
   );
 }

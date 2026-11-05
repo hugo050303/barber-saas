@@ -34,6 +34,16 @@
   .tabla td { @apply border-t border-line px-4 py-3 align-middle; }
 }
 
+/* Entrada suave de cada pantalla */
+@keyframes entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.entrar { animation: entrar 0.28s ease-out both; }
+@keyframes brillo { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.esqueleto {
+  background: linear-gradient(90deg, #EDE7DD 0px, #F7F3EC 160px, #EDE7DD 320px);
+  background-size: 800px 100%; animation: brillo 1.3s linear infinite; border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) { .entrar, .esqueleto { animation: none; } }
+
 /* Franja de poste de barbero (detalle de marca) */
 .poste {
   background: repeating-linear-gradient(-45deg, #B4322A 0 8px, #F5F2EC 8px 16px, #22324A 16px 24px, #F5F2EC 24px 32px);

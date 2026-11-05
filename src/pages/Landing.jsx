@@ -98,7 +98,7 @@ export default function Landing() {
             <Link to="/registro" className="btn-rojo px-6 py-3.5 text-base">Crear mi barbería gratis <ArrowRight size={18} /></Link>
             <a href="#precios" className="btn-ghost px-6 py-3.5 text-base">Ver precios</a>
           </div>
-          <p className="mt-4 text-sm text-ink-3">Sin tarjeta. La configuras en lo que se hace un corte.</p>
+          <p className="mt-4 text-sm text-ink-3">Sin tarjeta. Entra con Google o con tu correo y la configuras en lo que se hace un corte.</p>
         </div>
         <Maqueta />
       </section>
@@ -124,8 +124,8 @@ export default function Landing() {
         <h2 className="display text-5xl md:text-6xl">Empiezas hoy mismo</h2>
         <ol className="mt-10 grid gap-8 md:grid-cols-3">
           {[
-            ['Crea tu cuenta', 'Nombre de tu barbería, tu correo y una contraseña. Nada más.'],
-            ['Da de alta lo básico', 'Tus servicios con precio y duración, tu equipo y tu horario.'],
+            ['Crea tu cuenta', 'Con tu cuenta de Google o con correo y contraseña. Nada más.'],
+            ['Da de alta lo básico', 'Tus servicios con precio y duración, tu equipo, tu horario y tu hora de comida.'],
             ['Comparte tu link', 'Pégalo en tu bio y en WhatsApp. Las citas empiezan a caer solas en tu agenda.'],
           ].map(([t, d], i) => (
             <li key={t} className="border-t-2 border-ink pt-4">

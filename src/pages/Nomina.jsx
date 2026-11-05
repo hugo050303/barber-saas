@@ -2,16 +2,13 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { dinero, fechaInput, desdeInput, inicioDia, finDia } from '../lib/formato';
+import { dinero, hoyYmd, sumarDias, diaSemana, inicioDia, finDia } from '../lib/formato';
 import { PageHeader, SoloPro, Cargando, Vacio, Field } from '../components/ui';
 
 function rango(tipo) {
-  const hoy = new Date();
-  if (tipo === 'semana') {
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
-    return [fechaInput(lunes), fechaInput(hoy)];
-  }
-  return [fechaInput(new Date(hoy.getFullYear(), hoy.getMonth(), 1)), fechaInput(hoy)];
+  const hoy = hoyYmd();
+  if (tipo === 'semana') return [sumarDias(hoy, -((diaSemana(hoy) + 6) % 7)), hoy];
+  return [`${hoy.slice(0, 8)}01`, hoy];
 }
 
 export default function Nomina() {
@@ -24,11 +21,11 @@ export default function Nomina() {
     setFilas(null);
     const [b, c] = await Promise.all([
       db.from('barberos').select('*').order('nombre'),
-      db.from('citas').select('barbero_id, servicios(precio)').eq('estado', 'finalizada').gte('fecha_hora', inicioDia(desdeInput(desde))).lte('fecha_hora', finDia(desdeInput(hasta))),
+      db.from('citas').select('barbero_id, precio, servicios(precio)').eq('estado', 'finalizada').gte('fecha_hora', inicioDia(desde)).lte('fecha_hora', finDia(hasta)),
     ]);
     setFilas((b.data || []).map((barbero) => {
       const suyas = (c.data || []).filter((x) => x.barbero_id === barbero.id);
-      const vendido = suyas.reduce((a, x) => a + (Number(x.servicios?.precio) || 0), 0);
+      const vendido = suyas.reduce((a, x) => a + (Number(x.precio ?? x.servicios?.precio) || 0), 0);
       const pct = Number(barbero.porcentaje_comision ?? 50);
       return { ...barbero, pct, servicios: suyas.length, vendido, pago: (vendido * pct) / 100 };
     }));

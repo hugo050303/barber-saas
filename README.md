@@ -13,6 +13,25 @@ Hecho con React + Vite + Tailwind y **Firebase** (Firestore + Authentication). S
 - El cobro es manual: el dueño te escribe desde "Pasar a Pro", te paga y tú le activas el mes en **`/admin`**
   (solo la cuenta configurada en `ADMIN_EMAIL` puede entrar).
 - Si el Pro vence, la cuenta regresa a Gratis sin perder datos.
+- Los dueños se registran solos, con **Google** o con correo y contraseña.
+- **Tope de registros:** en `/admin` puedes cerrar el registro o fijar cuántas barberías caben (por defecto 100).
+  Lo respetan las reglas de seguridad, no solo la pantalla.
+
+## Activar "Entrar con Google"
+
+Firebase Console → Authentication → Método de acceso → **Google** → Habilitar → Guardar.
+Después, en Authentication → Configuración → **Dominios autorizados**, agrega tu dominio de Vercel
+(por ejemplo `mi-app.vercel.app`) y tu dominio propio si tienes uno.
+
+## Costos de Firebase
+
+- Plan gratis (Spark): 50,000 lecturas y 20,000 escrituras al día. Alcanza para unas 25 a 50 barberías
+  usándolo a diario. Las cuentas que no se usan no gastan nada.
+- Cuando crezcas, cambia a **Blaze** (pago por uso, ~$0.06 USD por cada 100,000 lecturas) y pon una
+  **alerta de presupuesto** en Google Cloud. 100 barberías activas cuestan del orden de unos pocos dólares al mes.
+- La app está hecha para leer poco: listas paginadas (clientes de 50 en 50, gastos por mes, últimos 10 cortes),
+  el resumen de cada cliente se guarda en su ficha en vez de recalcularse, y las reglas de seguridad
+  identifican al dueño sin lecturas extra.
 
 ## Ajustes rápidos (`src/config.js`)
 
@@ -35,11 +54,13 @@ Reglas → pegar el archivo completo → Publicar.
 ## Estructura de datos (Firestore)
 
 ```
-negocios/{id}            nombre, slug, ownerUid, whatsapp, direccion, horario, plan, proHasta
+negocios/{uid}           nombre, slug, ownerUid, whatsapp, direccion, zona, horario, plan, proHasta
   barberos/ servicios/ clientes/ citas/ ocupados/
   inventario/ ventas_productos/ gastos/ cortes_caja/
 slugs/{slug}             negocioId (para las URLs de reservas)
 usuarios/{uid}           negocioId, nombre, email, whatsapp
+sistema/config           registroAbierto, maxNegocios (solo admin)
+sistema/registro         total de barberías registradas
 ```
 
 ## Desarrollo

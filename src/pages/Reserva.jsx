@@ -3,26 +3,51 @@ import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MapPin, MessageCircle, Clock, Check } from 'lucide-react';
 import { db, usarNegocio } from '../db';
-import { negocioPorSlug, ocupadosDelDia, horariosLibres, crearCita, esPro } from '../lib/negocio';
-import { dinero, hora, fechaLarga, soloDigitos, linkWhatsApp } from '../lib/formato';
+import { negocioPorSlug, ocupadosDelDia, crearCita, esPro } from '../lib/negocio';
+import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS } from '../lib/horario';
+import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
-import { MARCA, HORARIO_DEFAULT } from '../config';
-
-const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+import { MARCA, LIMITE_BARBEROS_GRATIS } from '../config';
 
 function Paso({ n, titulo, activo, hecho, resumen, onEditar, children }) {
   return (
     <section className={`border-t border-line py-5 first:border-t-0 ${!activo && !hecho ? 'opacity-40' : ''}`}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="flex items-baseline gap-3 text-lg font-bold">
-          <span className={`display text-2xl ${hecho ? 'text-verde' : 'text-rojo'}`}>{hecho ? <Check size={20} className="inline" /> : n}</span>
+          <span className={`display w-5 text-2xl ${hecho ? 'text-verde' : 'text-rojo'}`}>{hecho ? <Check size={20} className="inline" /> : n}</span>
           {titulo}
         </h2>
         {hecho && !activo && <button onClick={onEditar} className="text-sm font-semibold underline underline-offset-4">Cambiar</button>}
       </div>
-      {hecho && !activo && <p className="mt-1 pl-9 text-ink-2">{resumen}</p>}
+      {hecho && !activo && <p className="mt-1 pl-8 text-ink-2">{resumen}</p>}
       {activo && <div className="mt-4">{children}</div>}
     </section>
+  );
+}
+
+// Agrupa las horas en mañana / tarde / noche
+function GruposDeHoras({ horas, elegida, onElegir }) {
+  const grupos = [['Mañana', (h) => h < 12], ['Tarde', (h) => h >= 12 && h < 18], ['Noche', (h) => h >= 18]];
+  return (
+    <div className="mt-5 space-y-4">
+      {grupos.map(([nombre, filtro]) => {
+        const suyas = horas.filter((iso) => filtro(partesZona(iso).h));
+        if (!suyas.length) return null;
+        return (
+          <div key={nombre}>
+            <p className="eyebrow mb-2">{nombre}</p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {suyas.map((h) => (
+                <button key={h} onClick={() => onElegir(h)}
+                  className={`rounded border py-2.5 text-sm font-semibold transition ${elegida === h ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
+                  {hora(h)}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -41,22 +66,17 @@ export default function Reserva() {
   useEffect(() => {
     (async () => {
       const n = await negocioPorSlug(slug).catch(() => null);
+      if (n) { usarNegocio(n.id); usarZona(n.zona); document.title = `Reserva en ${n.nombre}`; }
       setNegocio(n);
       if (!n) return;
-      usarNegocio(n.id);
-      document.title = `Reserva en ${n.nombre}`;
       const [b, s] = await Promise.all([db.from('barberos').select('*').order('nombre'), db.from('servicios').select('*').order('nombre')]);
-      setBarberos((b.data || []).filter((x) => x.activo !== false));
+      let activos = (b.data || []).filter((x) => x.activo !== false);
+      // En plan gratis solo se reserva con el barbero principal
+      if (!esPro(n)) activos = (activos.some((x) => x.id === 'principal') ? activos.filter((x) => x.id === 'principal') : activos).slice(0, LIMITE_BARBEROS_GRATIS);
+      setBarberos(activos);
       setServicios(s.data || []);
     })();
   }, [slug]);
-
-  const horario = { ...HORARIO_DEFAULT, ...(negocio?.horario || {}) };
-  const dias = [];
-  for (let i = 0; dias.length < 14 && i < 30; i++) {
-    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + i);
-    if (horario.dias.includes(d.getDay())) dias.push(d);
-  }
 
   useEffect(() => {
     if (!sel.dia) return;
@@ -64,8 +84,10 @@ export default function Reserva() {
     ocupadosDelDia(sel.dia).then(setOcupados).catch(() => setOcupados([]));
   }, [sel.dia]);
 
+  const horario = negocio?.horario;
+  const dias = negocio ? diasReservables(horario).filter((d) => !sel.barbero || horarioDelDia(horario, d, sel.barbero)) : [];
   const libres = sel.dia && ocupados && sel.barbero && sel.servicio
-    ? horariosLibres({ fecha: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados, barberoId: sel.barbero.id })
+    ? horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados, barbero: sel.barbero })
     : [];
 
   async function confirmar(e) {
@@ -73,10 +95,10 @@ export default function Reserva() {
     if (soloDigitos(datos.telefono).length !== 10) return toast.error('Tu WhatsApp debe tener 10 dígitos.');
     setEnviando(true);
     try {
-      // Revisar otra vez que el horario siga libre (alguien pudo ganarlo)
+      // Revisar otra vez que la hora siga libre (alguien pudo ganarla)
       const frescos = await ocupadosDelDia(sel.dia);
-      const sigueLibre = horariosLibres({ fecha: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados: frescos, barberoId: sel.barbero.id }).includes(sel.hora);
-      if (!sigueLibre) {
+      const sigue = horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados: frescos, barbero: sel.barbero }).includes(sel.hora);
+      if (!sigue) {
         setOcupados(frescos); setSel({ ...sel, hora: null }); setPaso(3);
         toast.error('Alguien acaba de apartar esa hora. Elige otra, por favor.');
         setEnviando(false);
@@ -90,7 +112,7 @@ export default function Reserva() {
     setEnviando(false);
   }
 
-  if (negocio === undefined) return <div className="flex min-h-screen justify-center"><Cargando /></div>;
+  if (negocio === undefined) return <div className="flex min-h-screen items-center justify-center"><Cargando texto="Cargando…" /></div>;
   if (negocio === null) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
@@ -100,6 +122,7 @@ export default function Reserva() {
     );
   }
 
+  const hoy = horarioDelDia(horario, hoyYmd());
   const encabezado = (
     <header className="bg-ink text-paper">
       <div className="poste h-1.5" />
@@ -107,9 +130,9 @@ export default function Reserva() {
         <p className="eyebrow text-paper/50">Reserva tu cita</p>
         <h1 className="display mt-2 text-5xl">{negocio.nombre}</h1>
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-paper/70">
-          {negocio.direccion && <span className="flex items-center gap-1.5"><MapPin size={14} />{negocio.direccion}</span>}
-          <span className="flex items-center gap-1.5"><Clock size={14} />{horario.abre} a {horario.cierra}</span>
-          {negocio.whatsapp && <a href={linkWhatsApp(negocio.whatsapp, 'Hola, tengo una pregunta')} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 underline-offset-4 hover:underline"><MessageCircle size={14} />WhatsApp</a>}
+          {negocio.direccion && <a href={`https://maps.google.com/?q=${encodeURIComponent(negocio.direccion)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-paper"><MapPin size={14} />{negocio.direccion}</a>}
+          <span className="flex items-center gap-1.5"><Clock size={14} />{hoy ? `Hoy de ${hoy.abre} a ${hoy.cierra}` : 'Hoy cerrado'}</span>
+          {negocio.whatsapp && <a href={linkWhatsApp(negocio.whatsapp, 'Hola, tengo una pregunta')} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-paper"><MessageCircle size={14} />WhatsApp</a>}
         </div>
       </div>
     </header>
@@ -158,7 +181,11 @@ export default function Reserva() {
               resumen={sel.servicio && `${sel.servicio.nombre} · ${dinero(sel.servicio.precio)}`}>
               <div className="divide-y divide-line rounded border border-line bg-card">
                 {servicios.map((s) => (
-                  <button key={s.id} onClick={() => { setSel({ ...sel, servicio: s, hora: null }); setPaso(sel.barbero ? 3 : 2); }}
+                  <button key={s.id} onClick={() => {
+                    const barbero = sel.barbero || (barberos.length === 1 ? barberos[0] : null);
+                    setSel({ ...sel, servicio: s, barbero, hora: null });
+                    setPaso(barbero ? 3 : 2);
+                  }}
                     className={`flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left hover:bg-paper ${sel.servicio?.id === s.id ? 'bg-paper' : ''}`}>
                     <span><span className="block font-semibold">{s.nombre}</span><span className="text-sm text-ink-3">{s.duracion_min || 30} min</span></span>
                     <span className="font-bold">{dinero(s.precio)}</span>
@@ -170,7 +197,7 @@ export default function Reserva() {
             <Paso n="2" titulo="¿Con quién?" activo={paso === 2} hecho={!!sel.barbero} onEditar={() => setPaso(2)} resumen={sel.barbero?.nombre}>
               <div className="grid grid-cols-2 gap-2">
                 {barberos.map((b) => (
-                  <button key={b.id} onClick={() => { setSel({ ...sel, barbero: b, hora: null }); setPaso(3); }}
+                  <button key={b.id} onClick={() => { setSel({ ...sel, barbero: b, dia: null, hora: null }); setPaso(3); }}
                     className={`rounded border px-4 py-3.5 text-left transition ${sel.barbero?.id === b.id ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
                     <span className="block font-semibold">{b.nombre}</span>
                     {b.especialidad && <span className={`text-sm ${sel.barbero?.id === b.id ? 'text-paper/70' : 'text-ink-3'}`}>{b.especialidad}</span>}
@@ -181,30 +208,25 @@ export default function Reserva() {
 
             <Paso n="3" titulo="¿Cuándo?" activo={paso === 3} hecho={!!sel.hora} onEditar={() => setPaso(3)}
               resumen={sel.hora && <span className="first-letter:uppercase">{fechaLarga(sel.hora)} · {hora(sel.hora)}</span>}>
-              <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-2">
-                {dias.map((d) => {
-                  const activo = sel.dia && d.toDateString() === sel.dia.toDateString();
-                  return (
-                    <button key={d.toISOString()} onClick={() => setSel({ ...sel, dia: d, hora: null })}
-                      className={`flex w-16 shrink-0 flex-col items-center rounded border py-2.5 ${activo ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
-                      <span className={`text-[11px] uppercase ${activo ? 'text-paper/70' : 'text-ink-3'}`}>{DIAS[d.getDay()]}</span>
-                      <span className="text-xl font-bold">{d.getDate()}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {dias.length === 0 ? <p className="text-sm text-ink-2">No hay días disponibles por ahora. Escríbele a la barbería por WhatsApp.</p> : (
+                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-2">
+                  {dias.map((d) => {
+                    const activo = sel.dia === d;
+                    return (
+                      <button key={d} onClick={() => setSel({ ...sel, dia: d, hora: null })} aria-label={diaLargo(d)}
+                        className={`flex w-16 shrink-0 flex-col items-center rounded border py-2.5 ${activo ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
+                        <span className={`text-[11px] uppercase ${activo ? 'text-paper/70' : 'text-ink-3'}`}>{d === hoyYmd() ? 'Hoy' : DIAS_CORTOS[diaSemana(d)]}</span>
+                        <span className="text-xl font-bold">{diaDelMes(d)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {sel.dia && (
                 ocupados === null ? <Cargando texto="Buscando horarios…" /> :
                 libres.length === 0
-                  ? <p className="mt-4 text-sm text-ink-2">No quedan horarios libres con {sel.barbero.nombre} este día. Prueba otro día.</p>
-                  : <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-5">
-                      {libres.map((h) => (
-                        <button key={h} onClick={() => { setSel({ ...sel, hora: h }); setPaso(4); }}
-                          className={`rounded border py-2.5 text-sm font-semibold ${sel.hora === h ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
-                          {hora(h)}
-                        </button>
-                      ))}
-                    </div>
+                  ? <p className="mt-4 text-sm text-ink-2">Ya no quedan horas libres con {sel.barbero.nombre} este día. Prueba otro día.</p>
+                  : <GruposDeHoras horas={libres} elegida={sel.hora} onElegir={(h) => { setSel({ ...sel, hora: h }); setPaso(4); }} />
               )}
             </Paso>
 

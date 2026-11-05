@@ -6,6 +6,7 @@ import { auth } from '../firebase';
 import { mensajeAuth } from '../lib/erroresAuth';
 import { useSesion } from '../lib/sesion';
 import AuthShell from '../components/AuthShell';
+import BotonGoogle, { Separador } from '../components/BotonGoogle';
 import { Field } from '../components/ui';
 
 export default function Entrar() {
@@ -52,6 +53,8 @@ export default function Entrar() {
   return (
     <AuthShell titulo="Entra a tu panel"
       pie={<>¿Aún no tienes cuenta? <Link to="/registro" className="font-semibold text-ink underline underline-offset-4">Crea tu barbería gratis</Link></>}>
+      <BotonGoogle />
+      <Separador />
       <form onSubmit={entrar} className="space-y-4">
         <Field label="Correo"><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></Field>
         <Field label="Contraseña"><input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>

@@ -18,7 +18,7 @@
 //   Llama a usarNegocio(id) al iniciar sesión (o al abrir una página pública de reservas).
 
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where, orderBy, limit as limitar,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
 
@@ -104,6 +104,7 @@ class QueryBuilder {
     this.values = null;
     this.returnRows = false;
     this.singleMode = null; // 'single' | 'maybe'
+    this.max = null;
   }
 
   select(columns = '*') {
@@ -123,6 +124,9 @@ class QueryBuilder {
   lte(field, value) { this.filters.push({ op: 'lte', field, value }); return this; }
   ilike(field, value) { this.filters.push({ op: 'ilike', field, value }); return this; }
   order(field, { ascending = true } = {}) { this.orders.push({ field, ascending }); return this; }
+  // Máximo de filas. Si los filtros y el orden lo permiten, el límite se aplica en Firestore
+  // (solo se cobran esas lecturas); si no, se aplica después en el navegador.
+  limit(n) { this.max = n; return this; }
   single() { this.singleMode = 'single'; return this; }
   maybeSingle() { this.singleMode = 'maybe'; return this; }
 
@@ -164,6 +168,15 @@ class QueryBuilder {
     const constraints = rangeFields.size === 1
       ? ranges.map((f) => where(f.field, RANGE_OPS[f.op], f.value))
       : [];
+
+    // ¿Se puede ordenar y limitar en el servidor sin índices compuestos?
+    const soloRangos = this.filters.every((f) => RANGE_OPS[f.op]) && rangeFields.size <= 1;
+    const campoRango = [...rangeFields][0];
+    const orden = this.orders[0];
+    if (this.max && soloRangos && this.orders.length <= 1 && (!orden || !campoRango || orden.field === campoRango)) {
+      if (orden) constraints.push(orderBy(orden.field, orden.ascending ? 'asc' : 'desc'));
+      constraints.push(limitar(this.max));
+    }
 
     const snap = await getDocs(query(collection(firestore, ruta(this.table)), ...constraints));
     return snap.docs
@@ -223,6 +236,7 @@ class QueryBuilder {
   }
 
   finish(rows) {
+    if (this.max && rows.length > this.max) rows = rows.slice(0, this.max);
     if (!this.singleMode) return rows;
     if (rows.length === 0) {
       if (this.singleMode === 'maybe') return null;

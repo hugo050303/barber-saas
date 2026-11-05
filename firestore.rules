@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore para barber-saas.
+// - Usuarios con sesión iniciada (dueño / staff): acceso total.
+// - Visitantes de la página pública /reservar: pueden ver barberos, servicios
+//   y el nombre del negocio, y crear citas y clientes. Nada más.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function staff() {
+      return request.auth != null;
+    }
+
+    match /barberos/{id}      { allow read: if true;  allow write: if staff(); }
+    match /servicios/{id}     { allow read: if true;  allow write: if staff(); }
+    match /configuracion/{id} { allow read: if true;  allow write: if staff(); }
+
+    match /citas/{id} {
+      allow read, update, delete: if staff();
+      allow create: if staff() || (
+        request.resource.data.estado == 'pendiente' &&
+        request.resource.data.cliente_nombre is string &&
+        request.resource.data.fecha_hora is string
+      );
+    }
+
+    match /clientes/{id} {
+      allow read, update, delete: if staff();
+      allow create: if staff() || request.resource.data.nombre is string;
+    }
+
+    // Todo lo demás (inventario, ventas_productos, gastos, cortes_caja): solo staff
+    match /{coleccion}/{id} {
+      allow read, write: if staff();
+    }
+  }
+}

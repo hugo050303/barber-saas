@@ -1,12 +1,12 @@
 import React from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const ModalDetalles = ({ cita, isOpen, onClose, onUpdate }) => {
   if (!isOpen || !cita) return null;
 
   // Función para cambiar el estado en la base de datos
   const cambiarEstado = async (nuevoEstado) => {
-    const { error } = await supabase
+    const { error } = await db
       .from('citas')
       .update({ estado: nuevoEstado })
       .eq('id', cita.id);
@@ -22,7 +22,7 @@ const ModalDetalles = ({ cita, isOpen, onClose, onUpdate }) => {
   const eliminarCita = async () => {
     if (!window.confirm("¿Seguro que quieres eliminar esta cita del historial?")) return;
 
-    const { error } = await supabase
+    const { error } = await db
       .from('citas')
       .delete()
       .eq('id', cita.id);

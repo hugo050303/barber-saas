@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
 import { Toaster } from 'react-hot-toast';
 
 // Páginas
@@ -24,9 +25,9 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    return () => subscription.unsubscribe();
+    // Firebase avisa cuando el usuario inicia o cierra sesión
+    const unsubscribe = onAuthStateChanged(auth, (user) => { setSession(user); setLoading(false); });
+    return unsubscribe;
   }, []);
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 text-slate-400">Cargando...</div>;

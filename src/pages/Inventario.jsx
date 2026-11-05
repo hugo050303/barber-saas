@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Inventario = () => {
   const [productos, setProductos] = useState([]);
@@ -17,7 +17,7 @@ const Inventario = () => {
 
   async function fetchProductos() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('inventario')
       .select('*')
       .order('nombre', { ascending: true });
@@ -31,7 +31,7 @@ const Inventario = () => {
     e.preventDefault();
     setGuardando(true);
 
-    const { error } = await supabase.from('inventario').insert([
+    const { error } = await db.from('inventario').insert([
       { nombre, precio_venta: precio, stock: stock }
     ]);
 
@@ -49,7 +49,7 @@ const Inventario = () => {
     const nuevoStock = cantidadActual + cambio;
     if (nuevoStock < 0) return; // No permitir negativos
 
-    const { error } = await supabase
+    const { error } = await db
       .from('inventario')
       .update({ stock: nuevoStock })
       .eq('id', id);
@@ -60,7 +60,7 @@ const Inventario = () => {
 
   async function eliminarProducto(id) {
     if(!window.confirm("¿Borrar producto del sistema?")) return;
-    const { error } = await supabase.from('inventario').delete().eq('id', id);
+    const { error } = await db.from('inventario').delete().eq('id', id);
     if (!error) fetchProductos();
   }
 

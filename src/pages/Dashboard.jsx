@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const Dashboard = () => {
@@ -20,9 +20,9 @@ const Dashboard = () => {
     const anioActual = fecha.getFullYear();
 
     // 1. Cargar Datos
-    const { data: citas } = await supabase.from('citas').select('fecha_hora, servicios(precio)').eq('estado', 'finalizada');
-    const { data: ventas } = await supabase.from('ventas_productos').select('total, fecha');
-    const { data: gastos } = await supabase.from('gastos').select('monto, fecha');
+    const { data: citas } = await db.from('citas').select('fecha_hora, servicios(precio)').eq('estado', 'finalizada');
+    const { data: ventas } = await db.from('ventas_productos').select('total, fecha');
+    const { data: gastos } = await db.from('gastos').select('monto, fecha');
 
     // 2. Calcular Totales del Mes
     let sumaCitas = 0, sumaVentas = 0, sumaGastos = 0;

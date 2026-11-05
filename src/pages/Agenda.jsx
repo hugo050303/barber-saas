@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import ModalCita from '../components/ModalCita';
 import ModalDetalles from '../components/ModalDetalles';
 
@@ -15,13 +15,13 @@ const Agenda = () => {
 
   async function fetchData() {
     setLoading(true);
-    const { data: dataBarberos } = await supabase.from('barberos').select('*').order('nombre');
+    const { data: dataBarberos } = await db.from('barberos').select('*').order('nombre');
     setBarberos(dataBarberos || []);
 
     const inicioDia = new Date(fechaFiltro); inicioDia.setHours(0, 0, 0, 0);
     const finDia = new Date(fechaFiltro); finDia.setHours(23, 59, 59, 999);
 
-    const { data } = await supabase
+    const { data } = await db
       .from('citas')
       .select(`*, servicios ( nombre, precio, duracion_min )`)
       .gte('fecha_hora', inicioDia.toISOString())

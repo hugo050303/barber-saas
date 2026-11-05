@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([]);
@@ -14,7 +14,7 @@ const Clientes = () => {
     setLoading(true);
     
     // 1. OBTENER LISTA DE CLIENTES
-    const { data: listaClientes, error: errorClientes } = await supabase
+    const { data: listaClientes, error: errorClientes } = await db
       .from('clientes')
       .select('*')
       .order('nombre');
@@ -30,7 +30,7 @@ const Clientes = () => {
 
     // 2. OBTENER HISTORIAL DE CITAS (Para saber cuánto han gastado)
     // Traemos todas las citas finalizadas con el precio del servicio
-    const { data: historial, error: errorCitas } = await supabase
+    const { data: historial, error: errorCitas } = await db
       .from('citas')
       .select('cliente_nombre, estado, servicios(precio)')
       .eq('estado', 'finalizada'); // Solo sumamos lo que ya pagaron

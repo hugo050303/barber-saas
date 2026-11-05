@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import { generarTicketVenta } from '../utils/ticketGenerator';
 
 const Venta = () => {
@@ -24,11 +24,11 @@ const Venta = () => {
     setLoading(true);
     
     // 1. Cargar productos con stock
-    const { data: dataProd } = await supabase.from('inventario').select('*').gt('stock', 0).order('nombre');
+    const { data: dataProd } = await db.from('inventario').select('*').gt('stock', 0).order('nombre');
     setProductos(dataProd || []);
     
     // 2. Cargar datos del negocio (Nombre, Dirección, Teléfono)
-    const { data: dataConfig } = await supabase.from('configuracion').select('*').single();
+    const { data: dataConfig } = await db.from('configuracion').select('*').single();
     if (dataConfig) {
         setNombreNegocio(dataConfig.nombre_negocio);
         setConfigNegocio(dataConfig); // Guardamos todo el objeto para usarlo al imprimir
@@ -62,7 +62,7 @@ const Venta = () => {
     setProcesando(true);
 
     // 1. Registrar venta en historial
-    const { data: ventaGuardada, error } = await supabase.from('ventas_productos')
+    const { data: ventaGuardada, error } = await db.from('ventas_productos')
       .insert([{ total: totalPagar, detalle_items: carrito }])
       .select()
       .single();
@@ -75,7 +75,7 @@ const Venta = () => {
 
     // 2. Descontar stock (en segundo plano)
     for (const item of carrito) {
-      await supabase.from('inventario').update({ stock: item.stock - item.cantidad }).eq('id', item.id);
+      await db.from('inventario').update({ stock: item.stock - item.cantidad }).eq('id', item.id);
     }
 
     // 3. Preparar datos para el ticket

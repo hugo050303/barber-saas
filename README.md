@@ -1,26 +1,34 @@
 # Barber SaaS
 
 App de gestión para barberías (agenda, ventas, inventario, nómina, corte de caja y reservas públicas).
-Hecha con React + Vite y **Supabase** (base de datos + login).
+Hecha con React + Vite y **Firebase** (Firestore como base de datos + Firebase Authentication para el login).
 
-> ⚠️ Esta app usa `@supabase/supabase-js` (login y API de datos de Supabase).
-> Por eso **no funciona con Neon** u otro Postgres "solo base de datos": necesita un proyecto de Supabase.
+## Configurar Firebase (plan gratis "Spark", sin tarjeta)
 
-## Configurar la base de datos (Supabase, plan gratis)
-
-1. Crea un proyecto en https://supabase.com/dashboard (o reactiva el tuyo: los proyectos gratis
-   se **pausan** después de ~7 días sin uso, revisa si dice "Paused" y presiona "Restore").
-2. Ve a **SQL Editor → New query**, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y presiona **Run**.
-   Esto crea todas las tablas y los permisos.
-3. Ve a **Authentication → Users → Add user → Create new user**, crea tu correo y contraseña
-   (marca "Auto Confirm User"). Con ese usuario inicias sesión en la app.
-4. Ve a **Project Settings → API** y copia la *Project URL* y la clave *anon / publishable*.
-5. Ponlas en el archivo `.env` (ver `.env.example`):
+1. Entra a https://console.firebase.google.com → **Agregar proyecto** (puedes desactivar Google Analytics).
+2. **Compilación → Firestore Database → Crear base de datos** → elige una ubicación
+   (ej. `us-central1` o `southamerica-east1`) → modo **producción**.
+3. En Firestore, pestaña **Reglas**: borra lo que hay, pega el contenido de
+   [`firestore.rules`](firestore.rules) y presiona **Publicar**.
+4. **Compilación → Authentication → Comenzar → Correo electrónico/contraseña → Habilitar**.
+   Luego en la pestaña **Usuarios → Agregar usuario**: crea tu correo y contraseña.
+   Con ese usuario inicias sesión en la app.
+5. **⚙️ Configuración del proyecto → General → Tus apps → ícono `</>` (Web)** → registra la app.
+   Te mostrará un bloque `firebaseConfig`. Copia esos valores al archivo `.env`
+   (usa `.env.example` como guía):
    ```
-   VITE_SUPABASE_URL=https://xxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=...
+   VITE_FIREBASE_API_KEY=...        (apiKey)
+   VITE_FIREBASE_AUTH_DOMAIN=...    (authDomain)
+   VITE_FIREBASE_PROJECT_ID=...     (projectId)
+   VITE_FIREBASE_APP_ID=...         (appId)
    ```
-6. En **Vercel → Settings → Environment Variables** agrega esas mismas dos variables y vuelve a desplegar.
+6. **Vercel → tu proyecto → Settings → Environment Variables**: agrega esas mismas 4 variables
+   y vuelve a desplegar (Deployments → ⋯ → Redeploy).
+7. En Firebase → Authentication → **Configuración → Dominios autorizados**, agrega tu dominio de Vercel
+   (ej. `mi-barberia.vercel.app`).
+
+La primera vez entra a **Configuración** en la app y guarda el nombre del negocio.
+Las colecciones de Firestore se crean solas al guardar el primer dato.
 
 ## Desarrollo
 
@@ -28,3 +36,10 @@ Hecha con React + Vite y **Supabase** (base de datos + login).
 npm install
 npm run dev
 ```
+
+## Estructura de datos
+
+- `src/firebase.js`: conexión a Firebase.
+- `src/db.js`: capa de datos sobre Firestore (`db.from('citas').select(...).eq(...)`).
+- Colecciones: `configuracion` (documento `1`), `barberos`, `servicios`, `clientes`, `citas`,
+  `inventario`, `ventas_productos`, `gastos`, `cortes_caja`.

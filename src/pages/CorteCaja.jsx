@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import toast from 'react-hot-toast';
 
 const CorteCaja = () => {
@@ -20,7 +20,7 @@ const CorteCaja = () => {
     const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // 1. Sumar Servicios de Hoy
-    const { data: citas } = await supabase.from('citas')
+    const { data: citas } = await db.from('citas')
       .select('servicios(precio)')
       .eq('estado', 'finalizada')
       .gte('fecha_hora', `${hoy}T00:00:00`)
@@ -29,7 +29,7 @@ const CorteCaja = () => {
     const totalServicios = citas?.reduce((acc, c) => acc + (c.servicios?.precio || 0), 0) || 0;
 
     // 2. Sumar Ventas de Productos de Hoy
-    const { data: ventas } = await supabase.from('ventas_productos')
+    const { data: ventas } = await db.from('ventas_productos')
       .select('total')
       .gte('fecha', `${hoy}T00:00:00`)
       .lte('fecha', `${hoy}T23:59:59`);
@@ -37,7 +37,7 @@ const CorteCaja = () => {
     const totalProductos = ventas?.reduce((acc, v) => acc + (v.total || 0), 0) || 0;
 
     // 3. Sumar Gastos de Hoy
-    const { data: gastos } = await supabase.from('gastos')
+    const { data: gastos } = await db.from('gastos')
       .select('monto')
       .gte('fecha', `${hoy}T00:00:00`)
       .lte('fecha', `${hoy}T23:59:59`);
@@ -56,7 +56,7 @@ const CorteCaja = () => {
   const guardarCorte = async () => {
     if(!window.confirm("¿Cerrar caja del día? Esto guardará el histórico.")) return;
 
-    const { error } = await supabase.from('cortes_caja').insert([{
+    const { error } = await db.from('cortes_caja').insert([{
         total_servicios: resumen.servicios,
         total_ventas: resumen.productos,
         total_gastos: resumen.gastos,

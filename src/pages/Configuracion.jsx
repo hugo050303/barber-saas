@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Configuracion = () => {
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ const Configuracion = () => {
   async function fetchConfig() {
     setLoading(true);
     // Siempre pedimos la fila con ID 1
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('configuracion')
       .select('*')
       .eq('id', 1) 
@@ -39,7 +39,7 @@ const Configuracion = () => {
     e.preventDefault();
     setGuardando(true);
 
-    const { error } = await supabase
+    const { error } = await db
       .from('configuracion')
       .update({ 
         nombre_negocio: nombre,

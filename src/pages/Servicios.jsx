@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Servicios = () => {
   const [servicios, setServicios] = useState([]);
@@ -17,7 +17,7 @@ const Servicios = () => {
 
   async function fetchServicios() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('servicios')
       .select('*')
       .order('nombre', { ascending: true }); // Los ordena alfabéticamente
@@ -32,7 +32,7 @@ const Servicios = () => {
     setGuardando(true);
 
     // 1. VALIDACIÓN: Verificar si ya existe un servicio con ese nombre exacto (ignorando mayúsculas/minúsculas)
-    const { data: existe } = await supabase
+    const { data: existe } = await db
         .from('servicios')
         .select('id')
         .ilike('nombre', nombre); // ilike busca sin importar mayúsculas
@@ -44,7 +44,7 @@ const Servicios = () => {
     }
 
     // 2. Si no existe, lo guardamos
-    const { error } = await supabase.from('servicios').insert([
+    const { error } = await db.from('servicios').insert([
       { nombre, precio, duracion_min: duracion }
     ]);
 
@@ -60,7 +60,7 @@ const Servicios = () => {
   async function eliminarServicio(id) {
     if (!window.confirm("¿Seguro que quieres borrar este servicio?")) return;
 
-    const { error } = await supabase.from('servicios').delete().eq('id', id);
+    const { error } = await db.from('servicios').delete().eq('id', id);
 
     if (error) alert("Error al borrar: " + error.message);
     else fetchServicios(); // Recargar la lista

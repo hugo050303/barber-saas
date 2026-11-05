@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Gastos = () => {
   const [gastos, setGastos] = useState([]);
@@ -17,7 +17,7 @@ const Gastos = () => {
 
   async function fetchGastos() {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await db
       .from('gastos')
       .select('*')
       .order('fecha', { ascending: false }); // Los más recientes primero
@@ -29,7 +29,7 @@ const Gastos = () => {
     e.preventDefault();
     setGuardando(true);
 
-    const { error } = await supabase.from('gastos').insert([
+    const { error } = await db.from('gastos').insert([
       { descripcion, monto, categoria }
     ]);
 
@@ -44,7 +44,7 @@ const Gastos = () => {
 
   async function eliminarGasto(id) {
     if(!window.confirm("¿Eliminar este registro?")) return;
-    await supabase.from('gastos').delete().eq('id', id);
+    await db.from('gastos').delete().eq('id', id);
     fetchGastos();
   }
 

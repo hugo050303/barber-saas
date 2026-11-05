@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,14 +11,14 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      alert('Error de acceso: ' + error.message);
-    } 
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      const credencialesMalas = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'];
+      alert(credencialesMalas.includes(error.code)
+        ? 'Error de acceso: correo o contraseña incorrectos'
+        : 'Error de acceso: ' + error.message);
+    }
     setLoading(false);
   };
 

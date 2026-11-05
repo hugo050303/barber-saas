@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import ModalCita from '../components/ModalCita';
 import ModalDetalles from '../components/ModalDetalles';
 
@@ -15,15 +15,15 @@ const Agenda = () => {
 
   async function fetchData() {
     setLoading(true);
-    const { data: dataBarberos } = await supabase.from('barberos').select('*').order('nombre');
+    const { data: dataBarberos } = await db.from('barberos').select('*').order('nombre');
     setBarberos(dataBarberos || []);
 
     const inicioDia = new Date(fechaFiltro); inicioDia.setHours(0, 0, 0, 0);
     const finDia = new Date(fechaFiltro); finDia.setHours(23, 59, 59, 999);
 
-    const { data } = await supabase
+    const { data } = await db
       .from('citas')
-      .select(`*, servicios ( nombre, precio, duracion_min, duracion )`) // Traemos duracion
+      .select(`*, servicios ( nombre, precio, duracion_min )`)
       .gte('fecha_hora', inicioDia.toISOString())
       .lte('fecha_hora', finDia.toISOString())
       .order('fecha_hora', { ascending: true });
@@ -106,7 +106,7 @@ const Agenda = () => {
 
                             <div className="flex gap-2 items-center mb-1">
                                 <span className="font-bold text-slate-700 text-lg">{formatearHora(cita.fecha_hora)}</span>
-                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion || 30)}</span>
+                                <span className="text-xs text-gray-400">➔ {obtenerHoraFin(cita.fecha_hora, cita.servicios?.duracion_min || 30)}</span>
                             </div>
                             <h4 className="font-bold text-gray-800 text-sm truncate pr-6">{cita.cliente_nombre}</h4>
                             <p className="text-xs text-indigo-500 font-medium mb-1">{cita.servicios?.nombre}</p>

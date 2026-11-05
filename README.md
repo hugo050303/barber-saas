@@ -1,16 +1,35 @@
-# React + Vite
+# Barber SaaS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App de gestión para barberías (agenda, ventas, inventario, nómina, corte de caja y reservas públicas).
+Hecha con React + Vite y **Firebase** (Firestore como base de datos + Firebase Authentication para el login).
 
-Currently, two official plugins are available:
+## Configurar Firebase (plan gratis "Spark", sin tarjeta)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Entra a https://console.firebase.google.com → **Agregar proyecto** (puedes desactivar Google Analytics).
+2. **Compilación → Firestore Database → Crear base de datos** → elige una ubicación
+   (ej. `us-central1` o `southamerica-east1`) → modo **producción**.
+3. En Firestore, pestaña **Reglas**: borra lo que hay, pega el contenido de
+   [`firestore.rules`](firestore.rules) y presiona **Publicar**.
+4. **Compilación → Authentication → Comenzar → Correo electrónico/contraseña → Habilitar**.
+   Luego en la pestaña **Usuarios → Agregar usuario**: crea tu correo y contraseña.
+   Con ese usuario inicias sesión en la app.
+5. Los datos de conexión del proyecto (`barberia-659a5`) ya están en `src/firebase.js`
+   (son públicos; la seguridad la dan las reglas). Para usar otro proyecto, copia `.env.example`
+   como `.env` o agrega las variables `VITE_FIREBASE_*` en Vercel.
 
-## React Compiler
+La primera vez entra a **Configuración** en la app y guarda el nombre del negocio.
+Las colecciones de Firestore se crean solas al guardar el primer dato.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Desarrollo
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Estructura de datos
+
+- `src/firebase.js`: conexión a Firebase.
+- `src/db.js`: capa de datos sobre Firestore (`db.from('citas').select(...).eq(...)`).
+- Colecciones: `configuracion` (documento `1`), `barberos`, `servicios`, `clientes`, `citas`,
+  `inventario`, `ventas_productos`, `gastos`, `cortes_caja`.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Equipo = () => {
   const [barberos, setBarberos] = useState([]);
@@ -16,7 +16,7 @@ const Equipo = () => {
 
   async function fetchBarberos() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('barberos')
       .select('*')
       .order('nombre', { ascending: true });
@@ -30,7 +30,7 @@ const Equipo = () => {
     e.preventDefault();
     setGuardando(true);
 
-    const { error } = await supabase.from('barberos').insert([
+    const { error } = await db.from('barberos').insert([
       { nombre, especialidad }
     ]);
 
@@ -46,7 +46,7 @@ const Equipo = () => {
   async function eliminarBarbero(id) {
     if (!window.confirm("¿Estás seguro? Si borras al barbero, sus citas podrían quedar huérfanas.")) return;
 
-    const { error } = await supabase.from('barberos').delete().eq('id', id);
+    const { error } = await db.from('barberos').delete().eq('id', id);
     if (error) alert("Error: " + error.message);
     else fetchBarberos();
   }

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const Sidebar = () => {
   const [nombreNegocio, setNombreNegocio] = useState('Cargando...');
@@ -8,14 +10,14 @@ const Sidebar = () => {
 
   useEffect(() => {
     const fetchNombre = async () => {
-      const { data } = await supabase.from('configuracion').select('nombre_negocio').eq('id', 1).single();
+      const { data } = await db.from('configuracion').select('nombre_negocio').eq('id', 1).single();
       if (data) setNombreNegocio(data.nombre_negocio);
     };
     fetchNombre();
   }, []);
   
   const cerrarSesion = async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
   };
 
   // Función para cerrar el menú al hacer clic en un enlace (solo en móvil)

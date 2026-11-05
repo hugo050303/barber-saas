@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const Nomina = () => {
   const [loading, setLoading] = useState(false);
@@ -26,13 +26,13 @@ const Nomina = () => {
   }, [fechaInicio, fechaFin, barberos]);
 
   async function fetchBarberos() {
-    const { data } = await supabase.from('barberos').select('*').order('nombre');
+    const { data } = await db.from('barberos').select('*').order('nombre');
     setBarberos(data || []);
   }
 
   async function actualizarComision(id, nuevoPorcentaje) {
     // Guardar el nuevo % en base de datos
-    await supabase.from('barberos').update({ porcentaje_comision: nuevoPorcentaje }).eq('id', id);
+    await db.from('barberos').update({ porcentaje_comision: nuevoPorcentaje }).eq('id', id);
     fetchBarberos(); // Recargar para actualizar cálculos
   }
 
@@ -40,7 +40,7 @@ const Nomina = () => {
     setLoading(true);
 
     // 1. Traer todas las citas FINALIZADAS en el rango de fechas
-    const { data: citas } = await supabase
+    const { data: citas } = await db
       .from('citas')
       .select(`
         barbero_id,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const ModalCita = ({ isOpen, onClose, alGuardar }) => {
   const [cliente, setCliente] = useState('');
@@ -22,8 +22,8 @@ const ModalCita = ({ isOpen, onClose, alGuardar }) => {
   }, [isOpen]);
 
   async function cargarListas() {
-    const { data: dataBarberos } = await supabase.from('barberos').select('*');
-    const { data: dataServicios } = await supabase.from('servicios').select('*');
+    const { data: dataBarberos } = await db.from('barberos').select('*');
+    const { data: dataServicios } = await db.from('servicios').select('*');
     setBarberos(dataBarberos || []);
     setServicios(dataServicios || []);
   }
@@ -45,7 +45,7 @@ const ModalCita = ({ isOpen, onClose, alGuardar }) => {
         // ============================================================
         
         // A. Revisamos si el cliente ya existe en el directorio (por nombre)
-        const { data: clienteExistente } = await supabase
+        const { data: clienteExistente } = await db
             .from('clientes')
             .select('id')
             .ilike('nombre', cliente) // ilike busca ignorando mayúsculas
@@ -53,7 +53,7 @@ const ModalCita = ({ isOpen, onClose, alGuardar }) => {
 
         // B. Si NO existe, lo creamos
         if (!clienteExistente) {
-            const { error: errorCrear } = await supabase
+            const { error: errorCrear } = await db
                 .from('clientes')
                 .insert([
                     { nombre: cliente, telefono: telefono, notas: 'Cliente registrado desde Agenda' }
@@ -77,7 +77,7 @@ const ModalCita = ({ isOpen, onClose, alGuardar }) => {
 
         const fechaObj = new Date(fecha + 'T' + hora + ':00');
         
-        const { error: errorCita } = await supabase.from('citas').insert([
+        const { error: errorCita } = await db.from('citas').insert([
           {
             cliente_nombre: cliente,
             cliente_telefono: telefono,

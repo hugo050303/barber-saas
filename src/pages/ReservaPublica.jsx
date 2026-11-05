@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 import toast from 'react-hot-toast';
 
 const ReservaPublica = () => {
@@ -22,8 +22,8 @@ const ReservaPublica = () => {
   }, []);
 
   async function cargarDatos() {
-    const { data: b } = await supabase.from('barberos').select('*');
-    const { data: s } = await supabase.from('servicios').select('*');
+    const { data: b } = await db.from('barberos').select('*');
+    const { data: s } = await db.from('servicios').select('*');
     setBarberos(b || []);
     setServicios(s || []);
   }
@@ -42,7 +42,7 @@ const ReservaPublica = () => {
     const fechaFinal = new Date(`${seleccion.fecha}T${seleccion.hora}:00`);
     
     // 1. Guardar Cita
-    const { error } = await supabase.from('citas').insert([{
+    const { error } = await db.from('citas').insert([{
         cliente_nombre: seleccion.cliente,
         cliente_telefono: seleccion.telefono,
         fecha_hora: fechaFinal.toISOString(),
@@ -55,11 +55,11 @@ const ReservaPublica = () => {
         toast.error("Error al agendar: " + error.message);
     } else {
         // 2. Intentar guardar cliente en CRM (Auto-registro)
-        await supabase.from('clientes').insert([{ 
+        await db.from('clientes').insert([{ 
             nombre: seleccion.cliente, 
             telefono: seleccion.telefono,
             notas: 'Registrado desde Web Pública'
-        }]).select();
+        }]);
         
         setPaso(4); // Pantalla de éxito
         toast.success("¡Tu cita ha sido agendada!");

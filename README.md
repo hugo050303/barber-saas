@@ -13,19 +13,9 @@ Hecha con React + Vite y **Firebase** (Firestore como base de datos + Firebase A
 4. **Compilación → Authentication → Comenzar → Correo electrónico/contraseña → Habilitar**.
    Luego en la pestaña **Usuarios → Agregar usuario**: crea tu correo y contraseña.
    Con ese usuario inicias sesión en la app.
-5. **⚙️ Configuración del proyecto → General → Tus apps → ícono `</>` (Web)** → registra la app.
-   Te mostrará un bloque `firebaseConfig`. Copia esos valores al archivo `.env`
-   (usa `.env.example` como guía):
-   ```
-   VITE_FIREBASE_API_KEY=...        (apiKey)
-   VITE_FIREBASE_AUTH_DOMAIN=...    (authDomain)
-   VITE_FIREBASE_PROJECT_ID=...     (projectId)
-   VITE_FIREBASE_APP_ID=...         (appId)
-   ```
-6. **Vercel → tu proyecto → Settings → Environment Variables**: agrega esas mismas 4 variables
-   y vuelve a desplegar (Deployments → ⋯ → Redeploy).
-7. En Firebase → Authentication → **Configuración → Dominios autorizados**, agrega tu dominio de Vercel
-   (ej. `mi-barberia.vercel.app`).
+5. Los datos de conexión del proyecto (`barberia-659a5`) ya están en `src/firebase.js`
+   (son públicos; la seguridad la dan las reglas). Para usar otro proyecto, copia `.env.example`
+   como `.env` o agrega las variables `VITE_FIREBASE_*` en Vercel.
 
 La primera vez entra a **Configuración** en la app y guarda el nombre del negocio.
 Las colecciones de Firestore se crean solas al guardar el primer dato.

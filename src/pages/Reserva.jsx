@@ -7,6 +7,7 @@ import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan } fro
 import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS } from '../lib/horario';
 import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
+import BotonInstalar from '../components/BotonInstalar';
 import { MARCA } from '../config';
 
 function Paso({ n, titulo, activo, hecho, resumen, onEditar, children }) {
@@ -66,7 +67,10 @@ export default function Reserva() {
   useEffect(() => {
     (async () => {
       const n = await negocioPorSlug(slug).catch(() => null);
-      if (n) { usarNegocio(n.id); usarZona(n.zona); document.title = `Reserva en ${n.nombre}`; }
+      if (n) {
+        usarNegocio(n.id); usarZona(n.zona); document.title = `Reserva en ${n.nombre}`;
+        try { localStorage.setItem('ultimaReserva', slug); } catch { /* sin almacenamiento */ }
+      }
       setNegocio(n);
       if (!n) return;
       const [b, s] = await Promise.all([db.from('barberos').select('*').order('nombre'), db.from('servicios').select('*').order('nombre')]);
@@ -164,6 +168,7 @@ export default function Reserva() {
           {negocio.whatsapp && (
             <a href={linkWhatsApp(negocio.whatsapp, msg)} target="_blank" rel="noreferrer" className="btn-primary mt-6 w-full py-3"><MessageCircle size={18} /> Avisar por WhatsApp</a>
           )}
+          <BotonInstalar className="btn-ghost mt-3 w-full py-3" texto={`Guardar ${negocio.nombre} en tu celular`} nombre={negocio.nombre} />
         </main>
         {pie}
       </div>

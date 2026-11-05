@@ -56,6 +56,13 @@ Las fotos necesitan el plan **Blaze** de Firebase (los primeros 5 GB no cuestan)
 Las fotos se comprimen en el celular (una foto de 1.5 MB queda en ~115 KB) y cada barbería tiene un máximo
 de archivos fijo (logo, portada, 12 de galería y una por barbero).
 
+## App instalable (PWA)
+
+La app se puede instalar en Android, iPhone (Safari → Compartir → Agregar a pantalla de inicio),
+Windows y Mac (Chrome/Edge → Instalar). El botón "Instalar app" aparece en el menú del panel y en la
+confirmación de reserva. Al abrir la app instalada, el dueño llega a su agenda y el cliente a la última
+barbería donde reservó. Las actualizaciones se instalan solas. Íconos en `public/icono-*.png`.
+
 ## Hosting
 
 El plan gratis de Vercel (Hobby) **no permite uso comercial**. Al empezar a cobrar, pasa a Vercel Pro

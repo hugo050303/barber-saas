@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Link2, CalendarDays, Calculator, Wallet, MessageCircle } from 'lucide-react';
 import { Logo, HechoPor } from '../components/ui';
 import { linkWhatsApp } from '../lib/formato';
@@ -69,7 +69,15 @@ function Maqueta() {
 }
 
 export default function Landing() {
-  const { user } = useSesion();
+  const { user, cargando } = useSesion();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (cargando || !new URLSearchParams(window.location.search).has('origen')) return;
+    let ultima = null;
+    try { ultima = localStorage.getItem('ultimaReserva'); } catch { /* sin almacenamiento */ }
+    if (user) nav('/app', { replace: true });
+    else if (ultima) nav(`/r/${ultima}`, { replace: true });
+  }, [cargando, user, nav]);
   const [fundadoresQuedan, setFundadoresQuedan] = useState(null);
   useEffect(() => { configSistema().then((c) => setFundadoresQuedan(Math.max(0, FUNDADOR.lugares - (c.fundadoresUsados || 0)))); }, []);
   return (

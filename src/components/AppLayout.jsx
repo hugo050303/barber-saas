@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { auth } from '../firebase';
 import { useSesion } from '../lib/sesion';
-import { Logo } from './ui';
+import { Logo, HechoPor } from './ui';
 import { RUTA_ADMIN } from '../config';
 
 const NAV = [
@@ -72,6 +72,7 @@ function Navegacion({ onNavegar }) {
       <button onClick={() => signOut(auth)} className="flex items-center gap-3 border-t border-paper/10 px-5 py-3.5 text-sm text-paper/60 hover:text-paper">
         <LogOut size={16} /> Cerrar sesión
       </button>
+      <HechoPor claro className="px-5 pb-4" />
     </div>
   );
 }

@@ -1,6 +1,9 @@
 // Ajustes generales del producto. Cambia aquí el nombre y los precios.
 export const MARCA = 'Filo';
 
+// Empresa que hace la app (aparece como "un producto de")
+export const EMPRESA = { nombre: 'Somos Dom', lema: 'Soluciones digitales', sitio: 'https://somosdom.com', logo: '/somosdom.webp' };
+
 // Planes (precios en MXN). Los límites de barberos también están en firestore.rules: si los cambias, cambia los dos.
 export const PLANES = {
   gratis: { nombre: 'Gratis', mensual: 0, barberos: 1 },
@@ -24,7 +27,7 @@ export const ADMIN_EMAIL = 'hugo050303@gmail.com';
 
 // WhatsApp de ventas (10 dígitos, México). Los dueños lo usan para pagar su plan.
 // Si está vacío, la página de planes no muestra el botón de WhatsApp.
-export const WHATSAPP_VENTAS = '';
+export const WHATSAPP_VENTAS = '9212494549';
 
 // Fotos (planes de pago)
 export const MAX_FOTOS_GALERIA = 12;

@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Lock, Loader2 } from 'lucide-react';
-import { MARCA } from '../config';
+import { MARCA, EMPRESA } from '../config';
 
 export function Logo({ className = '', claro = false }) {
   return (
@@ -123,5 +123,17 @@ export function SoloPro({ titulo, children }) {
         <Link to="/app/plan" className="btn-rojo shrink-0">Ver plan Pro</Link>
       </div>
     </div>
+  );
+}
+
+// "Un producto de Somos Dom"
+export function HechoPor({ claro = false, className = '' }) {
+  return (
+    <a href={EMPRESA.sitio} target="_blank" rel="noreferrer"
+      className={`inline-flex items-center gap-2 text-xs ${claro ? 'text-paper/60 hover:text-paper' : 'text-ink-3 hover:text-ink'} ${className}`}>
+      <span>Un producto de</span>
+      <img src={EMPRESA.logo} alt="" className="h-5 w-5 rounded-full" />
+      <span className="font-semibold">{EMPRESA.nombre}</span>
+    </a>
   );
 }

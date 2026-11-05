@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Logo } from './ui';
+import { Logo, HechoPor } from './ui';
 
 // Marco de las pantallas de registro / entrar
 export default function AuthShell({ titulo, sub, children, pie }) {
@@ -10,6 +10,7 @@ export default function AuthShell({ titulo, sub, children, pie }) {
         <div>
           <p className="display text-[72px] leading-[0.9]">Silla llena.<br /><span className="text-rojo">Caja cuadrada.</span></p>
           <p className="mt-6 max-w-sm text-paper/70">Agenda, reservas por link, caja y nómina para tu barbería.</p>
+          <HechoPor claro className="mt-8" />
         </div>
         <div className="poste absolute bottom-0 left-0 right-0 h-2" />
       </aside>

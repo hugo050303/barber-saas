@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia } from '../lib/negocio';
+import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan } from '../lib/negocio';
 import { horariosLibres, horarioDelDia, chocaCon } from '../lib/horario';
 import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos } from '../lib/formato';
 import { PageHeader, Modal, Field, Badge, Cargando, Vacio } from '../components/ui';
@@ -172,10 +172,14 @@ export default function Agenda() {
       db.from('servicios').select('*').order('nombre'),
       db.from('citas').select('*, servicios ( nombre, precio, duracion_min )').gte('fecha_hora', inicioDia(dia)).lte('fecha_hora', finDia(dia)).order('fecha_hora'),
     ]);
-    setBarberos((b.data || []).filter((x) => x.activo !== false));
+    // Barberos del plan, más cualquiera que tenga citas ese día (para no esconder citas si bajó de plan)
+    const activos = (b.data || []).filter((x) => x.activo !== false);
+    const delPlan = new Set(barberosDelPlan(negocio, activos).map((x) => x.id));
+    const conCitas = new Set((c.data || []).map((x) => x.barbero_id));
+    setBarberos(activos.filter((x) => delPlan.has(x.id) || conCitas.has(x.id)));
     setServicios(s.data || []);
     setCitas(c.data || []);
-  }, [dia]);
+  }, [dia, negocio]);
   useEffect(() => { cargar(); }, [cargar]);
 
   const esHoy = dia === hoyYmd();

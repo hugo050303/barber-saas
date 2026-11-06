@@ -4,7 +4,7 @@ import { Logo, HechoPor } from '../components/ui';
 import { linkWhatsApp } from '../lib/formato';
 import { useSesion } from '../lib/sesion';
 import { useEffect, useState } from 'react';
-import { MARCA, PLANES, FUNDADOR, MAX_FOTOS_GALERIA, EMPRESA, WHATSAPP_VENTAS } from '../config';
+import { MARCA, PLANES, FUNDADOR, MAX_FOTOS_GALERIA, EMPRESA, WHATSAPP_VENTAS, FOTOS_ACTIVAS } from '../config';
 import { configSistema } from '../lib/negocio';
 
 const FUNCIONES = [
@@ -27,8 +27,9 @@ const FUNCIONES = [
 ];
 
 const GRATIS = ['Agenda y reservas por link', 'Horario, comida y días cerrados', 'Directorio de clientes', 'Servicios y precios', '1 barbero'];
-const PRO = ['Todo lo del plan Gratis', 'Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos de tus trabajos`, `Tu página sin la marca de ${MARCA}`];
-const PLUS = ['Todo lo del plan Pro', 'Barberos ilimitados', 'Fotos de cada barbero', 'Para barberías con equipo grande'];
+const pronto = FOTOS_ACTIVAS ? '' : ' (próximamente)';
+const PRO = ['Todo lo del plan Gratis', 'Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos de tus trabajos${pronto}`, `Tu página sin la marca de ${MARCA}`];
+const PLUS = ['Todo lo del plan Pro', 'Barberos ilimitados', `Fotos de cada barbero${pronto}`, 'Para barberías con equipo grande'];
 
 const FAQ = [
   ['¿Tengo que instalar algo?', 'No. Funciona en el navegador del celular, la tablet o la compu. Entras con tu correo y listo.'],
@@ -88,6 +89,7 @@ export default function Landing() {
         <nav className="flex items-center gap-5 text-sm">
           <a href="#funciones" className="hidden text-ink-2 hover:text-ink md:inline">Funciones</a>
           <a href="#precios" className="hidden text-ink-2 hover:text-ink md:inline">Precios</a>
+          <a href="/demo" className="hidden text-ink-2 hover:text-ink md:inline">Demo</a>
           <a href="#preguntas" className="hidden text-ink-2 hover:text-ink md:inline">Preguntas</a>
           {user
             ? <Link to="/app" className="btn-primary">Ir a mi panel</Link>
@@ -111,9 +113,10 @@ export default function Landing() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link to="/registro" className="btn-rojo px-6 py-3.5 text-base">Crear mi barbería gratis <ArrowRight size={18} /></Link>
-            <a href="#precios" className="btn-ghost px-6 py-3.5 text-base">Ver precios</a>
+            {/* Enlace normal (no de React Router) para que la demo arranque limpia */}
+            <a href="/demo" className="btn-ghost px-6 py-3.5 text-base">Probar la demo</a>
           </div>
-          <p className="mt-4 text-sm text-ink-3">Sin tarjeta. Entra con Google o con tu correo y la configuras en lo que se hace un corte.</p>
+          <p className="mt-4 text-sm text-ink-3">Sin tarjeta. Entra con Google o con tu correo y la configuras en lo que se hace un corte. ¿Quieres verla antes? La demo no pide cuenta.</p>
         </div>
         <Maqueta />
       </section>

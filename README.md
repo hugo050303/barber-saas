@@ -46,7 +46,18 @@ Después, en Authentication → Configuración → **Dominios autorizados**, agr
 | `WHATSAPP_VENTAS` | Tu WhatsApp para que los dueños te pidan el plan Pro |
 | `MAX_FOTOS_GALERIA` | Fotos de trabajos por barbería |
 
+## Modo demo (`/demo`)
+
+Botón "Probar la demo" en la página de ventas. Abre el panel completo de una barbería de ejemplo
+**sin cuenta ni contraseña**, con un mes de citas, clientes, ventas y reportes. Desde la franja de arriba
+se cambia entre **Gratis, Pro y Plus** para ver qué incluye cada plan. Todo vive en la memoria del navegador
+(`src/lib/demo.js`): no se guarda nada en Firebase, no cuesta lecturas y al recargar empieza limpia.
+
 ## Fotos (Cloud Storage)
+
+Mientras `FOTOS_ACTIVAS = false` (en `src/config.js`) las secciones de fotos están ocultas y los planes dicen
+"(próximamente)". Cuando tengas Storage listo, cámbialo a `true`.
+
 
 Las fotos necesitan el plan **Blaze** de Firebase (los primeros 5 GB no cuestan). Para activarlas:
 1. Firebase Console → Actualizar → **Blaze**, y en Google Cloud pon una alerta de presupuesto (por ejemplo $5 USD).

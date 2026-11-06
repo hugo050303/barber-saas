@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { X, MapPin, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { auth, firestore } from '../firebase';
+import { auth } from '../firebase';
+import { actualizarNegocio } from '../lib/negocio';
 import { useSesion } from '../lib/sesion';
 import { soloDigitos, aMinutos, ZONAS, ZONA_DEFAULT, usarZona, diaCorto, hoyYmd } from '../lib/formato';
 import { normalizarHorario, NOMBRES_DIA } from '../lib/horario';
 import { PageHeader, Field, Badge } from '../components/ui';
 import { FotoUnica, Galeria } from '../components/Fotos';
-import { MAX_FOTOS_GALERIA } from '../config';
+import { MAX_FOTOS_GALERIA, FOTOS_ACTIVAS } from '../config';
 import MensajesWhatsApp from '../components/MensajesWhatsApp';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
@@ -34,8 +34,8 @@ function Interruptor({ activo, onChange, label }) {
 }
 
 export default function Configuracion() {
-  const { negocio, user, pro } = useSesion();
-  const guardarCampo = (campos) => updateDoc(doc(firestore, 'negocios', negocio.id), campos);
+  const { negocio, user, pro, demo } = useSesion();
+  const guardarCampo = (campos) => actualizarNegocio(negocio.id, campos);
   const urlReservas = `${window.location.origin}/r/${negocio.slug}`;
   const [f, setF] = useState({
     nombre: negocio.nombre || '', direccion: negocio.direccion || '', whatsapp: negocio.whatsapp || '',
@@ -58,7 +58,7 @@ export default function Configuracion() {
     setGuardando(true);
     try {
       const hoy = hoyYmd();
-      await updateDoc(doc(firestore, 'negocios', negocio.id), {
+      await actualizarNegocio(negocio.id, {
         nombre: f.nombre.trim(), direccion: f.direccion.trim(), whatsapp: soloDigitos(f.whatsapp), telefono: soloDigitos(f.telefono),
         mensaje_ticket: f.mensaje_ticket.trim(), zona: f.zona,
         horario: { ...h, cerrados: h.cerrados.filter((x) => x >= hoy).sort() }, // los días cerrados que ya pasaron se limpian solos
@@ -165,6 +165,8 @@ export default function Configuracion() {
         </div>
       </form>
 
+      {/* Fotos: se activan con FOTOS_ACTIVAS cuando el proyecto tenga Cloud Storage (plan Blaze) */}
+      {FOTOS_ACTIVAS && (
       <Seccion titulo="Fotos" texto="Tu logo, una portada y fotos de tus trabajos. Se ven en tu página de reservas.">
         {!pro ? (
           <div className="card p-5">
@@ -186,6 +188,7 @@ export default function Configuracion() {
           </div>
         )}
       </Seccion>
+      )}
 
       <Seccion titulo="Google Maps" texto="Pon tu link de reservas en tu perfil de Google para que te aparezca el botón de reservar en Maps.">
         <ol className="space-y-3 text-[15px]">
@@ -203,6 +206,11 @@ export default function Configuracion() {
         <MensajesWhatsApp negocio={negocio} url={urlReservas} key={`${negocio.nombre}|${JSON.stringify(negocio.horario)}`} />
       </Seccion>
 
+      {demo ? (
+        <Seccion titulo="Tu cuenta" texto="Cuenta de demostración">
+          <p className="text-sm text-ink-2">En tu barbería real aquí cambias tu contraseña y ves con qué cuenta entras (correo o Google).</p>
+        </Seccion>
+      ) : (
       <Seccion titulo="Tu cuenta" texto={user.email}>
         <div className="flex flex-wrap items-center gap-2">
           {conGoogle ? <Badge tono="verde">Entras con Google</Badge> : user.emailVerified ? <Badge tono="verde">Correo confirmado</Badge> : (
@@ -211,6 +219,7 @@ export default function Configuracion() {
         </div>
         {!conGoogle && <button onClick={cambiarPassword} className="btn-ghost mt-4">Cambiar contraseña</button>}
       </Seccion>
+      )}
     </>
   );
 }

@@ -21,6 +21,7 @@ import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where, orderBy, limit as limitar,
 } from 'firebase/firestore';
 import { firestore } from './firebase';
+import { esDemo, mem } from './lib/demo';
 
 // Campos que deben guardarse como número (los inputs de los formularios dan texto).
 const NUMERIC_FIELDS = {
@@ -155,6 +156,7 @@ class QueryBuilder {
 
   // Devuelve las filas que cumplen los filtros (sin relaciones).
   async fetchRows() {
+    if (esDemo()) return mem.lista(this.table).filter((r) => this.filters.every((f) => matches(r, f)));
     const idF = this.idFilter();
     if (idF) {
       const snap = await getDoc(doc(firestore, ruta(this.table), String(idF.value)));
@@ -189,8 +191,10 @@ class QueryBuilder {
 
     for (const rel of parseEmbeds(this.columns)) {
       const fk = rel.replace(/s$/, '') + '_id';
-      const relSnap = await getDocs(collection(firestore, ruta(rel)));
-      const byId = new Map(relSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+      const relacionados = esDemo()
+        ? mem.lista(rel)
+        : (await getDocs(collection(firestore, ruta(rel)))).docs.map((d) => ({ id: d.id, ...d.data() }));
+      const byId = new Map(relacionados.map((d) => [d.id, d]));
       rows = rows.map((r) => ({ ...r, [rel]: r[fk] != null ? byId.get(String(r[fk])) || null : null }));
     }
 
@@ -214,8 +218,8 @@ class QueryBuilder {
         created_at: new Date().toISOString(),
         ...normalize(this.table, row),
       };
-      const ref = await addDoc(collection(firestore, ruta(this.table)), data);
-      created.push({ id: ref.id, ...data });
+      const id = esDemo() ? mem.agregar(this.table, data) : (await addDoc(collection(firestore, ruta(this.table)), data)).id;
+      created.push({ id, ...data });
     }
     return this.returnRows || this.singleMode ? this.finish(created) : null;
   }
@@ -228,6 +232,11 @@ class QueryBuilder {
       : await this.fetchRows();
 
     for (const { id } of targets) {
+      if (esDemo()) {
+        if (kind === 'delete') mem.borrar(this.table, id);
+        else mem.poner(this.table, id, normalize(this.table, this.values), { fusionar: true });
+        continue;
+      }
       const ref = doc(firestore, ruta(this.table), id);
       if (kind === 'delete') await deleteDoc(ref);
       else await setDoc(ref, normalize(this.table, this.values), { merge: true });

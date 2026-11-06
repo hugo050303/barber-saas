@@ -8,7 +8,7 @@ import { DIAS_CORTOS } from '../lib/horario';
 import { idParaNuevoBarbero } from '../lib/negocio';
 import { db, negocioId } from '../db';
 import { FotoUnica } from '../components/Fotos';
-import { PLANES, SLOTS_BARBEROS } from '../config';
+import { PLANES, SLOTS_BARBEROS, FOTOS_ACTIVAS } from '../config';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
 const barberosPermitidos = (plan) => (plan === 'pro' ? SLOTS_BARBEROS : SLOTS_BARBEROS.slice(0, 1));
@@ -57,7 +57,7 @@ export default function Equipo() {
   return (
     <>
       <PageHeader titulo="Equipo" sub={`Cada barbero tiene su columna en la agenda y aparece en tu página de reservas. Tu plan ${PLANES[plan].nombre} incluye ${max === Infinity ? 'barberos ilimitados' : max === 1 ? '1 barbero' : `hasta ${max} barberos`}.`} />
-      <Catalogo tabla="barberos" titulo="barbero" textoAgregar="Agregar barbero" filas={filas} recargar={recargar} Formulario={Formulario} formProps={{ conFotos: pro }}
+      <Catalogo tabla="barberos" titulo="barbero" textoAgregar="Agregar barbero" filas={filas} recargar={recargar} Formulario={Formulario} formProps={{ conFotos: pro && FOTOS_ACTIVAS }}
         puedeAgregar={!limite} idNuevo={idNuevo || undefined}
         bloqueo={<Link to="/app/plan" className="btn-ghost"><Lock size={14} /> {plan === 'gratis' ? 'Más barberos con Pro' : 'Barberos ilimitados con Plus'}</Link>}
         vacio={{ titulo: 'Agrega a tu primer barbero', texto: 'Si trabajas solo, agrégate a ti mismo.' }}

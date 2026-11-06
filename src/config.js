@@ -37,5 +37,7 @@ export const PRIVACIDAD = {
   actualizado: '6 de noviembre de 2026',
 };
 
-// Fotos (planes de pago)
+// Fotos (planes de pago). Requieren Cloud Storage (plan Blaze de Firebase).
+// Mientras sea false: no se muestran las secciones de fotos y los planes dicen "(próximamente)".
+export const FOTOS_ACTIVAS = false;
 export const MAX_FOTOS_GALERIA = 12;

@@ -5,6 +5,7 @@ import { SesionProvider, useSesion } from './lib/sesion';
 import { Cargando } from './components/ui';
 import AppLayout from './components/AppLayout';
 import { RUTA_ADMIN } from './config';
+import { esDemo } from './lib/demo';
 
 // Páginas públicas
 const Landing = lazy(() => import('./pages/Landing'));
@@ -49,6 +50,13 @@ function SoloAdmin({ children }) {
   return children;
 }
 
+// /demo: si la demo ya arrancó (main.jsx), entra al panel; si se llegó navegando dentro de la app, recarga para arrancarla
+function EntrarDemo() {
+  if (esDemo()) return <Navigate to="/app" replace />;
+  window.location.reload();
+  return <PantallaCarga />;
+}
+
 export default function App() {
   return (
     <SesionProvider>
@@ -65,6 +73,7 @@ export default function App() {
             <Route path="/crear-negocio" element={<CrearNegocio />} />
             <Route path="/r/:slug" element={<Reserva />} />
             <Route path="/privacidad" element={<Privacidad />} />
+            <Route path="/demo" element={<EntrarDemo />} />
             <Route path="/reservar" element={<Navigate to="/" replace />} />
 
             <Route path="/app" element={<ConNegocio><AppLayout /></ConNegocio>}>

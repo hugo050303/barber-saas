@@ -2,14 +2,16 @@ import { Check, MessageCircle } from 'lucide-react';
 import { useSesion } from '../lib/sesion';
 import { fechaLarga, linkWhatsApp, dinero } from '../lib/formato';
 import { PageHeader, Badge } from '../components/ui';
-import { PLANES, FUNDADOR, WHATSAPP_VENTAS, MARCA, MAX_FOTOS_GALERIA } from '../config';
+import { PLANES, FUNDADOR, WHATSAPP_VENTAS, MARCA, MAX_FOTOS_GALERIA, FOTOS_ACTIVAS } from '../config';
+import { cambiarPlanDemo } from '../lib/demo';
 
+const pronto = FOTOS_ACTIVAS ? '' : ' (próximamente)';
 const INCLUYE = {
-  pro: ['Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos en tu página`, `Tu página sin la marca de ${MARCA}`],
-  plus: ['Todo lo del plan Pro', 'Barberos ilimitados', 'Fotos de cada barbero'],
+  pro: ['Hasta 3 barberos', 'Caja con ticket impreso', 'Inventario, gastos y corte del día', 'Nómina y reportes del mes', `Logo, portada y ${MAX_FOTOS_GALERIA} fotos en tu página${pronto}`, `Tu página sin la marca de ${MARCA}`],
+  plus: ['Todo lo del plan Pro', 'Barberos ilimitados', `Fotos de cada barbero${pronto}`],
 };
 
-function Tarjeta({ id, actual, fundador, user, negocio }) {
+function Tarjeta({ id, actual, fundador, user, negocio, demo }) {
   const p = PLANES[id];
   const mensual = id === 'pro' && fundador ? FUNDADOR.precio : p.mensual;
   const esActual = actual === id;
@@ -28,7 +30,9 @@ function Tarjeta({ id, actual, fundador, user, negocio }) {
         </p>
         {!(id === 'pro' && fundador) && <p className="mt-1 text-sm text-ink-3">o {dinero(p.anual).replace('.00', '')} al año (2 meses gratis)</p>}
         <ul className="mt-5 flex-1 space-y-2">{INCLUYE[id].map((x) => <li key={x} className="flex gap-2.5"><Check size={18} className="mt-0.5 shrink-0 text-rojo" />{x}</li>)}</ul>
-        {WHATSAPP_VENTAS
+        {demo
+          ? <button onClick={() => cambiarPlanDemo(id)} disabled={esActual} className={`${id === 'pro' ? 'btn-rojo' : 'btn-primary'} mt-6 w-full py-3`}>{esActual ? `Estás viendo ${p.nombre}` : `Ver la demo con ${p.nombre}`}</button>
+          : WHATSAPP_VENTAS
           ? <a href={linkWhatsApp(WHATSAPP_VENTAS, mensaje)} target="_blank" rel="noreferrer" className={`${id === 'pro' ? 'btn-rojo' : 'btn-primary'} mt-6 w-full py-3`}><MessageCircle size={18} /> {esActual ? 'Renovar' : `Quiero ${p.nombre}`}</a>
           : <p className="mt-6 text-sm text-ink-3">Muy pronto podrás solicitarlo desde aquí.</p>}
       </div>
@@ -37,7 +41,7 @@ function Tarjeta({ id, actual, fundador, user, negocio }) {
 }
 
 export default function Plan() {
-  const { plan, negocio, user } = useSesion();
+  const { plan, negocio, user, demo } = useSesion();
   const hasta = negocio.proHasta?.toDate?.();
   const vencido = ['pro', 'plus'].includes(negocio.plan) && plan === 'gratis';
 
@@ -58,8 +62,8 @@ export default function Plan() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Tarjeta id="pro" actual={plan} fundador={negocio.fundador} user={user} negocio={negocio} />
-        <Tarjeta id="plus" actual={plan} fundador={false} user={user} negocio={negocio} />
+        <Tarjeta id="pro" actual={plan} fundador={negocio.fundador} user={user} negocio={negocio} demo={demo} />
+        <Tarjeta id="plus" actual={plan} fundador={false} user={user} negocio={negocio} demo={demo} />
       </div>
 
       <div className="mt-6 rounded bg-card p-5 text-sm text-ink-2">

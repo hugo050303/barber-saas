@@ -10,6 +10,8 @@ import { useSesion } from '../lib/sesion';
 import { Logo, HechoPor } from './ui';
 import BotonInstalar from './BotonInstalar';
 import { RUTA_ADMIN } from '../config';
+import FranjaDemo from './FranjaDemo';
+import { salirDeLaDemo } from '../lib/demo';
 
 const NAV = [
   { grupo: 'Día a día', items: [
@@ -29,7 +31,7 @@ const NAV = [
 ];
 
 function Navegacion({ onNavegar }) {
-  const { negocio, pro, plan, admin } = useSesion();
+  const { negocio, pro, plan, admin, demo } = useSesion();
   const link = ({ isActive }) =>
     `flex items-center gap-3 rounded px-3 py-2 text-[15px] transition ${isActive ? 'bg-paper/10 text-paper' : 'text-paper/65 hover:text-paper'}`;
   return (
@@ -58,10 +60,10 @@ function Navegacion({ onNavegar }) {
           <NavLink to="/app/configuracion" className={link} onClick={onNavegar}><Settings size={17} strokeWidth={1.75} /> Configuración</NavLink>
           {pro && <NavLink to="/app/plan" className={link} onClick={onNavegar}><Crown size={17} strokeWidth={1.75} /> Tu plan</NavLink>}
           {admin && <NavLink to={RUTA_ADMIN} className={link} onClick={onNavegar}><Shield size={17} strokeWidth={1.75} /> Administración</NavLink>}
-          {negocio && (
-            <a href={`/r/${negocio.slug}`} target="_blank" rel="noreferrer" className={link({})}>
-              <ExternalLink size={17} strokeWidth={1.75} /> Mi página de reservas
-            </a>
+          {negocio && (demo
+            // En la demo se abre en la misma pestaña para conservar los datos de prueba
+            ? <Link to={`/r/${negocio.slug}`} className={link({})} onClick={onNavegar}><ExternalLink size={17} strokeWidth={1.75} /> Mi página de reservas</Link>
+            : <a href={`/r/${negocio.slug}`} target="_blank" rel="noreferrer" className={link({})}><ExternalLink size={17} strokeWidth={1.75} /> Mi página de reservas</a>
           )}
         </div>
       </nav>
@@ -70,9 +72,13 @@ function Navegacion({ onNavegar }) {
           Pasar a Pro →
         </Link>
       )}
-      <BotonInstalar className="mx-3 mb-3 flex items-center justify-center gap-2 rounded border border-paper/20 px-3 py-2.5 text-sm font-semibold text-paper hover:bg-paper/10" />
-      <button onClick={() => signOut(auth)} className="flex items-center gap-3 border-t border-paper/10 px-5 py-3.5 text-sm text-paper/60 hover:text-paper">
-        <LogOut size={16} /> Cerrar sesión
+      {demo ? (
+        <button onClick={() => salirDeLaDemo('/registro')} className="mx-3 mb-3 block rounded bg-paper px-3 py-2.5 text-sm font-semibold text-ink hover:bg-white">
+          Crear mi barbería gratis →
+        </button>
+      ) : <BotonInstalar className="mx-3 mb-3 flex items-center justify-center gap-2 rounded border border-paper/20 px-3 py-2.5 text-sm font-semibold text-paper hover:bg-paper/10" />}
+      <button onClick={() => (demo ? salirDeLaDemo('/') : signOut(auth))} className="flex items-center gap-3 border-t border-paper/10 px-5 py-3.5 text-sm text-paper/60 hover:text-paper">
+        <LogOut size={16} /> {demo ? 'Salir de la demo' : 'Cerrar sesión'}
       </button>
       <HechoPor claro className="px-5 pb-4" />
     </div>
@@ -82,8 +88,10 @@ function Navegacion({ onNavegar }) {
 export default function AppLayout() {
   const [abierto, setAbierto] = useState(false);
   const { pathname } = useLocation();
+  const { demo } = useSesion();
   return (
     <div className="min-h-screen md:pl-60">
+      {demo && <FranjaDemo />}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-ink md:block"><Navegacion /></aside>
 
       {/* Barra superior en celular */}

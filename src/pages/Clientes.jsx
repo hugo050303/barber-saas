@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Search, MessageCircle, Plus, Trash2 } from 'lucide-react';
-import { firestore } from '../firebase';
-import { db, ruta } from '../db';
+import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { nuevoCliente } from '../lib/negocio';
+import { nuevoCliente, guardarCliente, borrarCliente } from '../lib/negocio';
 import { dinero, fechaCorta, linkWhatsApp, soloDigitos, normalizar } from '../lib/formato';
 import { PageHeader, Cargando, Vacio, Modal, Field, Badge } from '../components/ui';
 
@@ -26,15 +24,14 @@ function EditarCliente({ cliente, onClose, onGuardado }) {
     if (tel.length !== 10) return toast.error('El WhatsApp debe tener 10 dígitos.');
     setEnviando(true);
     try {
-      const ref = doc(firestore, ruta('clientes'), nuevo ? tel : cliente.id);
-      await setDoc(ref, nuevo ? nuevoCliente(f.nombre, tel, f.notas.trim()) : { nombre: f.nombre.trim(), nombre_busqueda: normalizar(f.nombre), notas: f.notas.trim() }, { merge: true });
+      await guardarCliente(nuevo ? tel : cliente.id, nuevo ? nuevoCliente(f.nombre, tel, f.notas.trim()) : { nombre: f.nombre.trim(), nombre_busqueda: normalizar(f.nombre), notas: f.notas.trim() }, { fusionar: true });
       toast.success('Cliente guardado'); onGuardado(); onClose();
     } catch { toast.error('No se pudo guardar.'); }
     setEnviando(false);
   }
   async function borrar() {
     if (!window.confirm(`¿Borrar a ${cliente.nombre} del directorio? Sus citas pasadas no se borran.`)) return;
-    try { await deleteDoc(doc(firestore, ruta('clientes'), cliente.id)); toast.success('Cliente borrado'); onGuardado(); onClose(); }
+    try { await borrarCliente(cliente.id); toast.success('Cliente borrado'); onGuardado(); onClose(); }
     catch { toast.error('No se pudo borrar.'); }
   }
   return (

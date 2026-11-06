@@ -10,8 +10,9 @@
 // VAPID_PRIVATE_KEY (se generan en el panel de administración).
 import { importPKCS8, SignJWT } from 'jose';
 import webpush from 'web-push';
-import { verificarTokenFirebase, PROYECTO } from './fotos.js';
+import { verificarTokenFirebase } from './fotos.js';
 import { textoAviso } from './textoAviso.js';
+import { campos, baseFirestore } from './firestoreRest.js';
 
 export class ErrorAviso extends Error {
   constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
@@ -46,23 +47,8 @@ export async function tokenAdmin() {
   return tokenGuardado.token;
 }
 
-function deFirestore(v) {
-  if (!v) return null;
-  if ('stringValue' in v) return v.stringValue;
-  if ('integerValue' in v) return Number(v.integerValue);
-  if ('doubleValue' in v) return v.doubleValue;
-  if ('booleanValue' in v) return v.booleanValue;
-  if ('timestampValue' in v) return v.timestampValue;
-  if ('mapValue' in v) return campos(v.mapValue.fields);
-  if ('arrayValue' in v) return (v.arrayValue.values || []).map(deFirestore);
-  return null;
-}
-const campos = (f) => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, deFirestore(v)]));
-
 export function firestoreAdmin() {
-  const base = process.env.FIRESTORE_EMULATOR_HOST
-    ? `http://${process.env.FIRESTORE_EMULATOR_HOST}/v1/projects/${PROYECTO}/databases/(default)/documents`
-    : `https://firestore.googleapis.com/v1/projects/${PROYECTO}/databases/(default)/documents`;
+  const base = baseFirestore();
   const pedir = async (ruta, opciones = {}) => fetch(`${base}/${ruta}`, { ...opciones, headers: { Authorization: `Bearer ${await tokenAdmin()}`, 'Content-Type': 'application/json' } });
   return {
     async leer(ruta) {

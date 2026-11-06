@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",
+    "@vercel/og": "^0.8.6",
     "firebase": "^12.19.0",
     "jose": "^6.2.15",
     "jspdf": "^3.0.4",

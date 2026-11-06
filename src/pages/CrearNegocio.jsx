@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { auth } from '../firebase';
@@ -48,6 +48,7 @@ export default function CrearNegocio() {
           <Field label="Tu nombre"><input className="input" required maxLength={60} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
           <Field label="WhatsApp de la barbería"><input className="input" required inputMode="numeric" placeholder="10 dígitos" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
           <button className="btn-rojo w-full py-3" disabled={enviando}>{enviando ? 'Creando…' : 'Crear mi barbería'}</button>
+          <p className="text-xs text-ink-3">Al crear tu barbería aceptas los <Link to="/terminos" target="_blank" className="underline">Términos y condiciones</Link> y el <Link to="/privacidad" target="_blank" className="underline">Aviso de privacidad</Link>.</p>
         </form>
       )}
     </AuthShell>

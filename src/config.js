@@ -42,3 +42,9 @@ export const PRIVACIDAD = {
 export const FOTOS_ACTIVAS = true;
 export const FOTOS_PROVEEDOR = 'vercel'; // 'vercel' (Vercel Blob) o 'firebase' (Cloud Storage, requiere plan Blaze)
 export const MAX_FOTOS_GALERIA = 12;
+
+// Términos y condiciones (/terminos). Revísalos con un abogado antes de tomarlos como definitivos.
+export const TERMINOS = {
+  actualizado: '6 de noviembre de 2026',
+  jurisdiccion: 'Coatzacoalcos, Veracruz', // tribunales para cualquier controversia
+};

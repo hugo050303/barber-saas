@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Check, MessageCircle } from 'lucide-react';
 import { useSesion } from '../lib/sesion';
 import { fechaLarga, linkWhatsApp, dinero } from '../lib/formato';
@@ -68,7 +69,7 @@ export default function Plan() {
 
       <div className="mt-6 rounded bg-card p-5 text-sm text-ink-2">
         <p className="font-semibold text-ink">¿Cómo se paga?</p>
-        <p className="mt-1">Escríbenos, te pasamos los datos para transferencia o depósito y activamos tu plan en cuanto se confirme el pago. Sin contratos: si un mes no renuevas, regresas al plan Gratis sin perder nada.</p>
+        <p className="mt-1">Escríbenos, te pasamos los datos para transferencia o depósito y activamos tu plan en cuanto se confirme el pago. Sin contratos: si un mes no renuevas, regresas al plan Gratis sin perder nada. <Link to="/terminos#pagos" className="underline">Términos de pago</Link>.</p>
       </div>
     </>
   );

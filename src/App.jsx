@@ -16,6 +16,7 @@ const Reserva = lazy(() => import('./pages/Reserva'));
 const MiCita = lazy(() => import('./pages/MiCita'));
 const NoEncontrado = lazy(() => import('./pages/NoEncontrado'));
 const Privacidad = lazy(() => import('./pages/Privacidad'));
+const Terminos = lazy(() => import('./pages/Terminos'));
 // Panel
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Clientes = lazy(() => import('./pages/Clientes'));
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/r/:slug" element={<Reserva />} />
             <Route path="/r/:slug/cita/:id" element={<MiCita />} />
             <Route path="/privacidad" element={<Privacidad />} />
+            <Route path="/terminos" element={<Terminos />} />
             <Route path="/demo" element={<EntrarDemo />} />
             <Route path="/reservar" element={<Navigate to="/" replace />} />
 

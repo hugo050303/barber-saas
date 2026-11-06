@@ -109,6 +109,17 @@ Cómo funciona:
 Lógica en `server/avisos.js` (`api/avisos.js`). Pruebas: `npx vite-node tests/avisos.mjs` (con el emulador
 de Firestore también prueba la lectura real).
 
+## Vista previa de los links y páginas legales
+
+- **Vista previa al compartir** (WhatsApp, Facebook, Instagram, Google): `/r/{slug}` pasa por `api/pagina.js`,
+  que pone en la página el nombre y la dirección de la barbería, y `api/og.js` dibuja la imagen 1200×630
+  con su nombre (fuente Archivo en `server/fuentes/`). La página principal usa la tarjeta de Filo.
+  Si algo falla, la página de reservas se sirve igual, sin vista previa. Pruebas: `npx vite-node tests/vista.mjs`
+  (después de `npm run build`; con el emulador de Firestore prueba también los datos reales).
+  Para revisar cómo se ve un link: https://developers.facebook.com/tools/debug/ (también refresca la caché).
+- **Términos y condiciones** en `/terminos` (fecha y jurisdicción en `TERMINOS`, `src/config.js`) y
+  **Aviso de privacidad** en `/privacidad`. Son borradores: revísalos con un abogado.
+
 ## Hosting
 
 El plan gratis de Vercel (Hobby) **no permite uso comercial**. Al empezar a cobrar, pasa a Vercel Pro

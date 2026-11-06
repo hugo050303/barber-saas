@@ -1,5 +1,38 @@
 {
+  "functions": {
+    "api/og.js": {
+      "includeFiles": "server/fuentes/**"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/r/:slug",
+      "has": [
+        {
+          "type": "query",
+          "key": "sv"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/r/:slug/:resto*",
+      "has": [
+        {
+          "type": "query",
+          "key": "sv"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/r/:slug",
+      "destination": "/api/pagina?slug=:slug"
+    },
+    {
+      "source": "/r/:slug/:resto*",
+      "destination": "/api/pagina?slug=:slug&resto=:resto*"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"

@@ -62,26 +62,22 @@ Botón "Probar la demo" en la página de ventas. Abre el panel completo de una b
 se cambia entre **Gratis, Pro y Plus** para ver qué incluye cada plan. Todo vive en la memoria del navegador
 (`src/lib/demo.js`): no se guarda nada en Firebase, no cuesta lecturas y al recargar empieza limpia.
 
-## Fotos (Cloud Storage)
+## Fotos (Vercel Blob)
 
-Mientras `FOTOS_ACTIVAS = false` (en `src/config.js`) las secciones de fotos están ocultas y los planes dicen
-"(próximamente)". Cuando tengas Storage listo, cámbialo a `true`.
+Las fotos (logo, portada, 12 trabajos y foto de cada barbero) son de los planes Pro y Plus y se guardan en
+**Vercel Blob**, incluido en Vercel Pro (no necesita Firebase Blaze ni otra cuenta).
 
+**Activarlas (una vez):** Vercel → proyecto → **Storage** → **Create** → **Blob** → conéctalo al proyecto
+(Production y Preview). Vercel agrega solo la variable `BLOB_READ_WRITE_TOKEN`. Después, vuelve a desplegar.
 
-Las fotos necesitan el plan **Blaze** de Firebase (los primeros 5 GB no cuestan). Para activarlas:
-1. Firebase Console → Actualizar → **Blaze**, y en Google Cloud pon una alerta de presupuesto (por ejemplo $5 USD).
-2. Firebase Console → **Storage** → Comenzar (ubicación `us-central1`).
-3. Storage → **Reglas** → pega `storage.rules` → Publicar.
-
-Las fotos se comprimen en el celular (una foto de 1.5 MB queda en ~115 KB) y cada barbería tiene un máximo
-de archivos fijo (logo, portada, 12 de galería y una por barbero).
-
-## App instalable (PWA)
-
-La app se puede instalar en Android, iPhone (Safari → Compartir → Agregar a pantalla de inicio),
-Windows y Mac (Chrome/Edge → Instalar). El botón "Instalar app" aparece en el menú del panel y en la
-confirmación de reserva. Al abrir la app instalada, el dueño llega a su agenda y el cliente a la última
-barbería donde reservó. Las actualizaciones se instalan solas. Íconos en `public/icono-*.png`.
+Cómo funciona:
+- Las fotos se comprimen en el navegador (~100-250 KB) y se suben con `@vercel/blob/client`.
+- Antes de cada subida, `api/fotos.js` (lógica en `server/fotos.js`) revisa la sesión de Firebase (firma de
+  Google), que la ruta sea de **su** barbería con un nombre permitido, que tenga **Pro o Plus vigente** y que
+  sea una imagen de máximo 2 MB. Al reemplazar o quitar una foto, la anterior se borra.
+- En el modo demo las fotos se quedan en el navegador.
+- `FOTOS_ACTIVAS` y `FOTOS_PROVEEDOR` en `src/config.js` (también se puede usar Firebase Storage con Blaze).
+- Pruebas: `npx vite-node tests/fotos.mjs`.
 
 ## Hosting
 

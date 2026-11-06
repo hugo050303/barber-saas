@@ -22,6 +22,7 @@ export function FotoUnica({ url, ruta, onCambio, opciones, etiqueta, forma = 'cu
       const blob = await comprimir(archivo, opciones);
       const nueva = await subirImagen(ruta, blob);
       await onCambio(nueva);
+      if (url && url !== nueva) borrarImagen(ruta, url).catch(() => {}); // la foto anterior ya no se usa
       toast.success('Foto guardada');
     } catch (e) { toast.error(mensajeErrorFoto(e)); }
     setSubiendo(false);
@@ -29,7 +30,7 @@ export function FotoUnica({ url, ruta, onCambio, opciones, etiqueta, forma = 'cu
   async function quitar() {
     if (!window.confirm('¿Quitar esta foto?')) return;
     setSubiendo(true);
-    try { await borrarImagen(ruta); await onCambio(null); } catch (e) { toast.error(mensajeErrorFoto(e)); }
+    try { await borrarImagen(ruta, url); await onCambio(null); } catch (e) { toast.error(mensajeErrorFoto(e)); }
     setSubiendo(false);
   }
   const caja = forma === 'ancha' ? 'aspect-[3/1] w-full' : forma === 'redonda' ? 'h-20 w-20 rounded-full' : 'h-24 w-24';
@@ -75,7 +76,7 @@ export function Galeria({ fotos, rutaBase, max, onCambio }) {
 
   async function quitar(foto) {
     if (!window.confirm('¿Quitar esta foto?')) return;
-    try { await borrarImagen(`${rutaBase}/${foto.slot}`); await onCambio(fotos.filter((f) => f.slot !== foto.slot)); }
+    try { await borrarImagen(`${rutaBase}/${foto.slot}`, foto.url); await onCambio(fotos.filter((f) => f.slot !== foto.slot)); }
     catch (e) { toast.error(mensajeErrorFoto(e)); }
   }
 

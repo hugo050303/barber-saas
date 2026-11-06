@@ -6,6 +6,11 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   globalIgnores(['dist']),
+  // Funciones de Vercel y pruebas: corren en Node
+  {
+    files: ['api/**/*.js', 'server/**/*.js', 'tests/**/*.mjs'],
+    languageOptions: { globals: globals.node },
+  },
   {
     files: ['**/*.{js,jsx}'],
     extends: [

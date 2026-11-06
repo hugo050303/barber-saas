@@ -37,7 +37,8 @@ export const PRIVACIDAD = {
   actualizado: '6 de noviembre de 2026',
 };
 
-// Fotos (planes de pago). Requieren Cloud Storage (plan Blaze de Firebase).
-// Mientras sea false: no se muestran las secciones de fotos y los planes dicen "(próximamente)".
-export const FOTOS_ACTIVAS = false;
+// Fotos (planes de pago). Se guardan en Vercel Blob (incluido en Vercel Pro): en Vercel → Storage → Blob,
+// crea un store y conéctalo al proyecto. Con false se ocultan las fotos y los planes dicen "(próximamente)".
+export const FOTOS_ACTIVAS = true;
+export const FOTOS_PROVEEDOR = 'vercel'; // 'vercel' (Vercel Blob) o 'firebase' (Cloud Storage, requiere plan Blaze)
 export const MAX_FOTOS_GALERIA = 12;

@@ -1,5 +1,6 @@
 // Componentes visuales compartidos.
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Lock, Loader2 } from 'lucide-react';
 import { MARCA, EMPRESA } from '../config';
@@ -39,25 +40,31 @@ export function Field({ label, hint, children, className = '' }) {
   );
 }
 
+// Ventana flotante: se pinta en <body> para quedar siempre encima (franja demo, menú) y
+// el título con la X se queda fijo arriba aunque el contenido sea largo.
 export function Modal({ abierto, onClose, titulo, children, ancho }) {
   ancho = ancho || 'max-w-md';
   useEffect(() => {
     if (!abierto) return;
     const esc = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', esc); document.body.style.overflow = antes; };
   }, [abierto, onClose]);
   if (!abierto) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center sm:p-4" onClick={onClose}>
-      <div className={`card max-h-[92vh] w-full overflow-y-auto rounded-b-none p-5 sm:rounded ${ancho}`} onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <h2 className="display text-3xl">{titulo}</h2>
-          <button onClick={onClose} className="-m-1 p-1 text-ink-3 hover:text-ink" aria-label="Cerrar"><X size={20} /></button>
+  return createPortal(
+    <div className="modal-fondo fixed inset-0 z-[70] flex items-end justify-center bg-ink/55 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={typeof titulo === 'string' ? titulo : undefined}
+        className={`modal-caja card flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-b-none shadow-2xl sm:rounded-lg ${ancho}`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-5 pb-3 pt-4">
+          <h2 className="display text-3xl leading-none">{titulo}</h2>
+          <button onClick={onClose} className="-mr-1 rounded-full p-1.5 text-ink-2 hover:bg-paper hover:text-ink" aria-label="Cerrar"><X size={20} /></button>
         </div>
-        {children}
+        <div className="overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

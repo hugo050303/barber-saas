@@ -1,0 +1,2 @@
+Archivo (Omnibus-Type), licencia SIL Open Font License 1.1 — https://fonts.google.com/specimen/Archivo
+Instancias fijas (800/62, 500/100, 700/100) del subconjunto latino, para las imágenes de vista previa (api/og.js).

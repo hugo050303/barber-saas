@@ -30,7 +30,7 @@ export default function Privacidad() {
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-20 md:px-8">
         <h1 className="display text-5xl md:text-6xl">Aviso de privacidad</h1>
-        <p className="mt-2 text-sm text-ink-3">Última actualización: {PRIVACIDAD.actualizado}</p>
+        <p className="mt-2 text-sm text-ink-3">Última actualización: {PRIVACIDAD.actualizado} · <Link to="/terminos" className="underline">Términos y condiciones</Link></p>
         <p className="mt-6 leading-relaxed text-ink-2">
           {MARCA} es un software para barberías hecho por <b className="text-ink">{EMPRESA.nombre}</b>. Este aviso explica qué datos personales
           tratamos, para qué y cómo puedes ejercer tus derechos, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.

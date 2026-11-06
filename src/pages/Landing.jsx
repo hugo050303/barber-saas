@@ -222,7 +222,7 @@ export default function Landing() {
           <Logo />
           <HechoPor />
           <a href={linkWhatsApp(WHATSAPP_VENTAS, `Hola, tengo una pregunta sobre ${MARCA}.`)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-ink"><MessageCircle size={14} /> ¿Dudas? Escríbenos por WhatsApp</a>
-          <p className="flex gap-4"><Link to="/privacidad" className="hover:text-ink">Aviso de privacidad</Link><span>© {new Date().getFullYear()} {EMPRESA.nombre}</span></p>
+          <p className="flex gap-4"><Link to="/terminos" className="hover:text-ink">Términos</Link><Link to="/privacidad" className="hover:text-ink">Aviso de privacidad</Link><span>© {new Date().getFullYear()} {EMPRESA.nombre}</span></p>
         </div>
       </footer>
     </div>

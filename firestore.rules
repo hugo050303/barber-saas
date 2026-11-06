@@ -77,10 +77,22 @@ service cloud.firestore {
       }
       match /servicios/{id} { allow read: if true; allow write: if isOwner(nid); }
 
+      // Celulares del dueño que reciben avisos (los lee el servidor con su cuenta de servicio)
+      match /dispositivos/{id} {
+        allow read, delete: if isOwner(nid);
+        allow create, update: if isOwner(nid)
+          && request.resource.data.keys().hasOnly(['endpoint', 'keys', 'nombre', 'creado'])
+          && request.resource.data.endpoint is string && request.resource.data.endpoint.matches('^https://.{10,600}$');
+      }
+
       // Horarios ocupados: sin datos personales, el público los ve para no empalmar citas
       match /ocupados/{id} {
         allow read: if true;
-        allow update, delete: if isOwner(nid);
+        allow update: if isOwner(nid);
+        // El cliente que cancela su cita libera su hora (en el mismo lote que la cancelación)
+        allow delete: if isOwner(nid) || (
+          existsAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
+          && getAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id)).data.estado == 'cancelada');
         allow create: if isOwner(nid) || (
           !exists(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
           && existsAfter(/databases/$(database)/documents/negocios/$(nid)/citas/$(id))
@@ -91,8 +103,12 @@ service cloud.firestore {
           && request.resource.data.duracion > 0 && request.resource.data.duracion <= 240);
       }
 
+      // Citas: el público no puede listarlas. Con el link de su cita (id aleatorio) el cliente
+      // la puede ver y cancelar; nada más.
       match /citas/{id} {
-        allow read, update, delete: if isOwner(nid);
+        allow get: if true;
+        allow list, delete: if isOwner(nid);
+        allow update: if isOwner(nid) || cancelacionDelCliente();
         allow create: if isOwner(nid) || citaPublicaValida(nid, request.resource.data);
       }
 
@@ -112,6 +128,14 @@ service cloud.firestore {
       match /ventas_productos/{id} { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
       match /gastos/{id}           { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
       match /cortes_caja/{id}      { allow read: if isOwner(nid); allow write: if isOwner(nid) && isPro(nid); }
+    }
+
+    function cancelacionDelCliente() {
+      let d = request.resource.data;
+      return resource.data.estado in ['pendiente', 'confirmada']
+        && d.estado == 'cancelada' && d.cancelada_por == 'cliente' && d.cancelada_en is string
+        && d.get('cambio', false) is bool
+        && d.diff(resource.data).affectedKeys().hasOnly(['estado', 'cancelada_por', 'cancelada_en', 'cambio']);
     }
 
     function citaPublicaValida(nid, c) {

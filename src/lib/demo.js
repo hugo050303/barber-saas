@@ -146,6 +146,15 @@ function sembrar() {
   // Un cliente que ya no ha vuelto (para la pestaña "Te extrañan")
   const ausente = clientes[clientes.length - 1];
   mem.poner('clientes', ausente.telefono, { visitas: 3, gastado: 450, ultima: new Date(ahora - 52 * 86400000).toISOString() }, { fusionar: true });
+  // Más clientes que se dejaron de ver (para "Por recuperar"); a uno ya se le escribió y otro regresó
+  const perdidos = [['Rodrigo Aguilar', 34, 5, 750], ['Pablo Mendoza', 41, 8, 1360], ['Hugo Navarro', 48, 2, 240], ['Martín Salazar', 63, 4, 520], ['Raúl Ortega', 95, 6, 870]];
+  perdidos.forEach(([nombre, dias, visitas, gastado], i) => {
+    const telefono = `5541${String(200000 + i * 6173).slice(-6)}`;
+    mem.poner('clientes', telefono, { nombre, nombre_busqueda: normalizar(nombre), telefono, notas: '', created_at: new Date(ahora - 200 * 86400000).toISOString(), visitas, gastado, ultima: new Date(ahora - dias * 86400000).toISOString(),
+      ...(i === 3 ? { recuperar_enviado: new Date(ahora - 3 * 86400000).toISOString() } : {}) });
+  });
+  const volvio = clientes[2];
+  mem.poner('clientes', volvio.telefono, { recuperar_enviado: new Date(ahora - 45 * 86400000).toISOString() }, { fusionar: true });
 
   // Ventas de mostrador, gastos y cortes de caja
   for (let k = -30; k <= 0; k++) {

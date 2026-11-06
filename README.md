@@ -84,6 +84,31 @@ Cómo funciona:
 - `FOTOS_ACTIVAS` y `FOTOS_PROVEEDOR` en `src/config.js` (también se puede usar Firebase Storage con Blaze).
 - Pruebas: `npx vite-node tests/fotos.mjs`.
 
+## Clientes: cambiar o cancelar su cita, avisos y recuperar
+
+- **Link de la cita** (`/r/{slug}/cita/{id}`): al apartar, el cliente recibe su link (en la pantalla de
+  confirmación, en su mensaje de WhatsApp y en el recordatorio del barbero). Ahí ve su cita, la guarda en su
+  calendario, **cambia la hora** (elige otra; la vieja se libera al confirmar la nueva) o **la cancela**.
+  El id de la cita es aleatorio: quien tiene el link es quien apartó. Las reglas solo le dejan leer esa cita
+  y pasarla a "cancelada".
+- **Avisos al celular** (notificaciones push): Configuración → Avisos al celular, o la tarjeta de la Agenda.
+  Llegan cuando un cliente aparta, cancela o cambia por link. En iPhone, solo con la app instalada.
+- **Por recuperar** (Clientes): quién no viene hace 30/45/60/90 días y no tiene cita próxima, cuánto valdría
+  que regresen, un toque para mandarles WhatsApp con el link (mensaje editable), a quién ya le escribiste y
+  cuántos regresaron después del mensaje.
+
+**Activar los avisos en el servidor (una vez), en Vercel → Settings → Environment Variables:**
+1. `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`: se generan en el panel de administración (sección
+   "Llaves de los avisos al celular", botón **Generar llaves**) y se copian a Vercel. No se guardan en ningún
+   lado. Si un día se cambian, cada barbería tendrá que volver a activar sus avisos.
+2. `FIREBASE_SERVICE_ACCOUNT`: Firebase Console → ⚙ Configuración del proyecto → **Cuentas de servicio** →
+   **Generar nueva clave privada** → pega todo el contenido del archivo JSON. Con ella el servidor lee la
+   cita real (nadie puede inventar el texto del aviso) y la marca como avisada para no avisar dos veces.
+   Funciona con el plan gratis de Firebase.
+
+Lógica en `server/avisos.js` (`api/avisos.js`). Pruebas: `npx vite-node tests/avisos.mjs` (con el emulador
+de Firestore también prueba la lectura real).
+
 ## Hosting
 
 El plan gratis de Vercel (Hobby) **no permite uso comercial**. Al empezar a cobrar, pasa a Vercel Pro
@@ -93,7 +118,8 @@ carpeta `dist`.
 ## Reglas de seguridad
 
 `firestore.rules` protege los datos: cada barbería solo ve lo suyo, el público solo ve barberos,
-servicios y horarios ocupados (sin nombres ni teléfonos), y solo el administrador cambia planes.
+servicios y horarios ocupados (sin nombres ni teléfonos), cada cliente solo ve y cancela su propia cita
+(con su link), y solo el administrador cambia planes.
 
 **Cada vez que cambien `firestore.rules` o `storage.rules`, hay que publicarlos:** Firebase Console →
 Firestore Database → Reglas (y Storage → Reglas) → pegar el archivo completo → Publicar.
@@ -103,6 +129,7 @@ Firestore Database → Reglas (y Storage → Reglas) → pegar el archivo comple
 ```
 negocios/{uid}           nombre, slug, ownerUid, whatsapp, direccion, zona, horario, plan, proHasta
   barberos/ servicios/ clientes/ citas/ ocupados/
+  dispositivos/            celulares del dueño que reciben avisos
   inventario/ ventas_productos/ gastos/ cortes_caja/
 slugs/{slug}             negocioId (para las URLs de reservas)
 usuarios/{uid}           negocioId, nombre, email, whatsapp

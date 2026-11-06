@@ -39,6 +39,7 @@ export default defineConfig({
         globPatterns: ['index.html', 'assets/index-*.{js,css}', '*.{svg,png,webp}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        importScripts: ['/avisos-sw.js'], // avisos al celular (push)
         runtimeCaching: [
           {
             urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'),

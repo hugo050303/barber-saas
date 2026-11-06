@@ -32,7 +32,7 @@ export const WHATSAPP_VENTAS = '9212494549';
 // Datos para el Aviso de Privacidad (/privacidad). Mientras estén vacíos, la página los marca como pendientes.
 export const PRIVACIDAD = {
   responsable: 'Victor Hugo Domínguez Domínguez', // nombre completo o razón social
-  domicilio: 'Hilario C. Salas 228, Col. Centro, Ixhuatlán del Sureste, Veracruz', // falta el código postal
+  domicilio: 'Hilario C. Salas 228, Col. Centro, Ixhuatlán del Sureste, Veracruz, C.P. 96365', // domicilio para notificaciones
   correo: 'hugo050303@gmail.com',                  // correo para solicitudes de privacidad (derechos ARCO)
   actualizado: '6 de noviembre de 2026',
 };

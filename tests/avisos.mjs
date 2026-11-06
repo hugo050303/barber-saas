@@ -2,9 +2,9 @@
 // Ejecutar: npx firebase-tools emulators:exec --only firestore --project barberia-659a5 "npx vite-node tests/avisos.mjs"
 // (sin emulador corren solo las pruebas que no tocan Firestore)
 import webpush from 'web-push';
-import { avisarCita, avisoDePrueba, enviarATodos, firestoreAdmin } from '../server/avisos.js';
+import { avisarCita, avisoDePrueba, enviarATodos, firestoreAdmin, llavePublica } from '../server/avisos.js';
 import { textoAviso, horaCorta } from '../server/textoAviso.js';
-import { VAPID_PUBLICA } from '../src/config.js';
+import { generarLlavesVapid } from '../src/lib/vapid.js';
 
 let fallas = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fallas++; };
@@ -25,10 +25,12 @@ ok(horaCorta('2026-11-07T00:05:00.000Z', 'America/Mexico_City') === '6:05 pm', '
 const navegador = webpush.generateVAPIDKeys(); // simula las llaves del celular
 const crypto = await import('node:crypto');
 const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/prueba', keys: { p256dh: navegador.publicKey, auth: crypto.randomBytes(16).toString('base64url') } };
-const privadaPrueba = webpush.generateVAPIDKeys();
+const deAdmin = await generarLlavesVapid(); // las que genera el panel de administración
+ok(Buffer.from(deAdmin.publica, 'base64url').length === 65 && Buffer.from(deAdmin.privada, 'base64url').length === 32, 'el panel genera llaves VAPID del tamaño correcto');
+const privadaPrueba = { publicKey: deAdmin.publica, privateKey: deAdmin.privada };
 const det = webpush.generateRequestDetails(sub, JSON.stringify({ title: 'x' }), { vapidDetails: { subject: 'https://reservas.somosdom.com', publicKey: privadaPrueba.publicKey, privateKey: privadaPrueba.privateKey }, TTL: 60 });
 ok(det.method === 'POST' && det.headers.Authorization?.startsWith('vapid t=') && det.headers['Content-Encoding'] === 'aes128gcm', 'web-push cifra y firma el aviso');
-ok(Buffer.from(VAPID_PUBLICA, 'base64url').length === 65, 'la llave pública VAPID de la app es válida');
+ok(Buffer.from(navegador.publicKey, 'base64url').length === 65, 'formato de llave pública VAPID');
 
 // ---------- Lógica con una base falsa ----------
 function baseFalsa(docs) {
@@ -76,8 +78,11 @@ ok((await intenta(() => avisarCita({ negocio: 'n1', cita: 'no-existe' }, { db, e
 ok((await intenta(() => avisarCita({ negocio: '../x', cita: 'a1' }, { db, enviar, ahora }))).status === 400, 'ids raros: rechazados');
 ok((await avisoDePrueba({ idToken: 't' }, { db, enviar, verificar: async () => 'n1' })).enviados === 1, 'aviso de prueba al dueño');
 ok((await intenta(() => avisoDePrueba({ idToken: 't' }, { db, enviar, verificar: async () => 'sin-celulares' }))).status === 404, 'prueba sin celulares: lo explica');
-delete process.env.VAPID_PRIVATE_KEY;
-ok((await intenta(() => enviarATodos('n1', { title: 'x' }, { db }))).status === 503, 'sin llave VAPID en el servidor: avisa que no está activado');
+delete process.env.VAPID_PRIVATE_KEY; delete process.env.VAPID_PUBLIC_KEY;
+ok((await intenta(() => enviarATodos('n1', { title: 'x' }, { db }))).status === 503, 'sin llaves VAPID en el servidor: avisa que no está activado');
+ok((await intenta(() => llavePublica())).status === 503, 'sin llaves: el navegador sabe que no está activado');
+process.env.VAPID_PUBLIC_KEY = privadaPrueba.publicKey; process.env.VAPID_PRIVATE_KEY = privadaPrueba.privateKey;
+ok(llavePublica() === privadaPrueba.publicKey, 'con llaves: entrega la pública');
 
 // ---------- Contra el emulador de Firestore (REST con la cuenta de servicio) ----------
 if (process.env.FIRESTORE_EMULATOR_HOST) {

@@ -2,7 +2,6 @@
 import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { firestore, auth } from '../firebase';
 import { esDemo, mem, negocioDemo } from './demo';
-import { VAPID_PUBLICA } from '../config';
 import { textoAviso } from '../../server/textoAviso.js';
 
 export const soportaAvisos = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -60,7 +59,9 @@ export async function activarAvisos(negocioId) {
   }
   const reg = await registro();
   if (!reg) throw new Error('sin-sw');
-  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(VAPID_PUBLICA) });
+  const publica = await fetch('/api/avisos').then((r) => (r.ok ? r.json() : null)).then((j) => j?.publica).catch(() => null);
+  if (!publica) throw new Error('sin-servidor');
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(publica) });
   const { endpoint, keys } = sub.toJSON();
   await setDoc(doc(firestore, `negocios/${negocioId}/dispositivos/${await idDe(endpoint)}`), { endpoint, keys, nombre: nombreDispositivo(), creado: new Date().toISOString() });
 }

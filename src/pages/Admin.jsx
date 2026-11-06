@@ -11,6 +11,7 @@ import { esPro, configSistema } from '../lib/negocio';
 import { Logo, Badge, Cargando, Stat } from '../components/ui';
 import { PLANES, FUNDADOR, MARCA } from '../config';
 import { dinero, fechaCorta, linkWhatsApp } from '../lib/formato';
+import LlavesAvisos from '../components/LlavesAvisos';
 
 const aFecha = (t) => (t?.toDate ? t.toDate() : t ? new Date(t) : null);
 
@@ -180,6 +181,7 @@ export default function Admin() {
             </div>
           </>
         )}
+        <LlavesAvisos />
       </main>
     </div>
   );

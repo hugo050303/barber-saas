@@ -12,7 +12,8 @@ const CLAVE_NO = 'avisosAhoraNo';
 const errorAviso = (e) => toast.error(
   e.message === 'sin-permiso' ? 'Diste "No permitir". Actívalos desde el candado junto a la dirección de la página.'
     : e.message === 'sin-sw' ? 'Recarga la página e inténtalo de nuevo.'
-      : e.message === 'sin-soporte' ? 'Este navegador no puede recibir avisos.' : 'No se pudieron activar los avisos.',
+      : e.message === 'sin-soporte' ? 'Este navegador no puede recibir avisos.'
+        : e.message === 'sin-servidor' ? 'Los avisos todavía no están listos en el servidor. Inténtalo más tarde.' : 'No se pudieron activar los avisos.',
 );
 
 export function InvitarAvisos() {

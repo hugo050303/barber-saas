@@ -6,12 +6,12 @@
 //   el id de la cita. El servidor lee la cita con la cuenta de servicio de Firebase (así nadie puede
 //   inventar el texto del aviso), la marca como avisada (para no avisar dos veces) y manda el aviso.
 //
-// Variables en Vercel: FIREBASE_SERVICE_ACCOUNT (el JSON de la cuenta de servicio) y VAPID_PRIVATE_KEY.
+// Variables en Vercel: FIREBASE_SERVICE_ACCOUNT (el JSON de la cuenta de servicio), VAPID_PUBLIC_KEY y
+// VAPID_PRIVATE_KEY (se generan en el panel de administración).
 import { importPKCS8, SignJWT } from 'jose';
 import webpush from 'web-push';
 import { verificarTokenFirebase, PROYECTO } from './fotos.js';
 import { textoAviso } from './textoAviso.js';
-import { VAPID_PUBLICA } from '../src/config.js';
 
 export class ErrorAviso extends Error {
   constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
@@ -86,10 +86,15 @@ export function firestoreAdmin() {
 }
 
 // ---------- Envío ----------
+// Llave pública de los avisos (el navegador la necesita para suscribirse)
+export function llavePublica() {
+  const publica = process.env.VAPID_PUBLIC_KEY;
+  if (!publica || !process.env.VAPID_PRIVATE_KEY) throw new ErrorAviso('Los avisos todavía no están activados en el servidor.', 503);
+  return publica;
+}
+
 function enviarPush(suscripcion, datos) {
-  const privada = process.env.VAPID_PRIVATE_KEY;
-  if (!privada) throw new ErrorAviso('Los avisos todavía no están activados en el servidor.', 503);
-  webpush.setVapidDetails('https://reservas.somosdom.com', VAPID_PUBLICA, privada);
+  webpush.setVapidDetails('https://reservas.somosdom.com', llavePublica(), process.env.VAPID_PRIVATE_KEY);
   return webpush.sendNotification(suscripcion, JSON.stringify(datos), { TTL: 6 * 3600, urgency: 'high' });
 }
 

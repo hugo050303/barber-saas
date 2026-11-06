@@ -98,9 +98,9 @@ Cómo funciona:
   cuántos regresaron después del mensaje.
 
 **Activar los avisos en el servidor (una vez), en Vercel → Settings → Environment Variables:**
-1. `VAPID_PRIVATE_KEY`: la llave privada de avisos (la pública está en `src/config.js`, `VAPID_PUBLICA`).
-   Para cambiarlas: `npx web-push generate-vapid-keys`, pon la pública en `config.js` y la privada aquí
-   (los celulares tendrán que volver a activar los avisos).
+1. `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`: se generan en el panel de administración (sección
+   "Llaves de los avisos al celular", botón **Generar llaves**) y se copian a Vercel. No se guardan en ningún
+   lado. Si un día se cambian, cada barbería tendrá que volver a activar sus avisos.
 2. `FIREBASE_SERVICE_ACCOUNT`: Firebase Console → ⚙ Configuración del proyecto → **Cuentas de servicio** →
    **Generar nueva clave privada** → pega todo el contenido del archivo JSON. Con ella el servidor lee la
    cita real (nadie puede inventar el texto del aviso) y la marca como avisada para no avisar dos veces.

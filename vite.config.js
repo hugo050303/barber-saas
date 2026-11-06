@@ -38,6 +38,7 @@ export default defineConfig({
         // cada pantalla del panel se guarda la primera vez que se abre.
         globPatterns: ['index.html', 'assets/index-*.{js,css}', '*.{svg,png,webp}'],
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//], // /api/... siempre va al servidor
         cleanupOutdatedCaches: true,
         importScripts: ['/avisos-sw.js'], // avisos al celular (push)
         runtimeCaching: [

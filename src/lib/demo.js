@@ -2,7 +2,7 @@
 // Los datos viven en la memoria del navegador; al recargar o salir, todo vuelve a empezar.
 // Desde la franja de la demo se puede cambiar entre los planes Gratis, Pro y Plus.
 import { enZona, hoyYmd, sumarDias, aHhmm, aMinutos, normalizar, ZONA_DEFAULT } from './formato';
-import { horarioDelDia } from './horario';
+import { turnosDelDia } from './horario';
 
 let activo = false;
 export const esDemo = () => activo;
@@ -48,16 +48,19 @@ function azar(semilla) {
   return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+const tu = (...pares) => ({ turnos: pares.map(([abre, cierra]) => ({ abre, cierra })) });
 const HORARIO = {
   dias: {
-    0: { abre: '10:00', cierra: '14:00' }, 1: { abre: '10:00', cierra: '20:00' }, 2: { abre: '10:00', cierra: '20:00' },
-    3: { abre: '10:00', cierra: '20:00' }, 4: { abre: '10:00', cierra: '20:00' }, 5: { abre: '10:00', cierra: '21:00' }, 6: { abre: '09:00', cierra: '21:00' },
+    0: tu(['10:00', '14:00']), 1: tu(['10:00', '20:00']), 2: tu(['10:00', '20:00']), 3: tu(['10:00', '20:00']),
+    4: tu(['10:00', '20:00']), 5: tu(['10:00', '21:00']), 6: tu(['09:00', '14:00'], ['16:00', '21:00']),
   },
-  descanso: { inicio: '15:00', fin: '16:00' }, intervalo: 30, anticipacion: 30, diasMaximo: 14, cerrados: [],
+  descansos: [{ nombre: 'Comida', inicio: '15:00', fin: '16:00', dias: [1, 2, 3, 4, 5] }, { nombre: 'Café', inicio: '12:00', fin: '12:15', dias: [] }],
+  bloqueos: [], intervalo: 15, anticipacion: 30, diasMaximo: 14, cerrados: [],
 };
 const BARBEROS = [
   ['principal', { nombre: 'Toño', especialidad: 'Fades y degradados', porcentaje_comision: 50, activo: true, diasLibres: [1] }],
-  ['b2', { nombre: 'Memo', especialidad: 'Barba y diseño', porcentaje_comision: 45, activo: true, diasLibres: [2] }],
+  ['b2', { nombre: 'Memo', especialidad: 'Barba y diseño', porcentaje_comision: 45, activo: true, diasLibres: [2],
+    horarioPropio: { dias: { 0: null, 1: tu(['14:00', '21:00']), 2: null, 3: tu(['14:00', '21:00']), 4: tu(['14:00', '21:00']), 5: tu(['14:00', '21:00']), 6: tu(['10:00', '21:00']) } } }],
   ['b3', { nombre: 'Iván', especialidad: 'Cortes clásicos', porcentaje_comision: 40, activo: true, diasLibres: [0] }],
 ];
 const SERVICIOS = [
@@ -99,14 +102,16 @@ function sembrar() {
   for (let k = -40; k <= 3; k++) {
     const ymd = sumarDias(hoy, k);
     for (const [barberoId, barbero] of BARBEROS) {
-      const dia = horarioDelDia(HORARIO, ymd, barbero);
-      if (!dia) continue;
+      const turnos = turnosDelDia(HORARIO, ymd, barbero);
+      if (!turnos.length) continue;
       const ocupado = [];
       const cuantas = k < 0 ? 3 + Math.floor(r() * 4) : k === 0 ? 4 + Math.floor(r() * 3) : 1 + Math.floor(r() * 3);
       for (let n = 0; n < cuantas; n++) {
         const [servicioId, , precio, duracion] = servicioAzar();
+        const dia = turnos[Math.floor(r() * turnos.length)];
         const ini = aMinutos(dia.abre) + Math.floor(r() * ((aMinutos(dia.cierra) - aMinutos(dia.abre) - duracion) / 30)) * 30;
         const fin = ini + duracion;
+        if (fin > aMinutos(dia.cierra)) continue;
         if (ini < 960 && fin > 900) continue;                         // hora de comida
         if (ocupado.some(([a, b]) => ini < b && fin > a)) continue;  // empalme
         ocupado.push([ini, fin]);
@@ -170,7 +175,8 @@ export function iniciarDemo() {
   negocio = {
     id: 'demo', nombre: 'Barbería Demo', slug: SLUG_DEMO, ownerUid: 'demo', whatsapp: '9212494549', telefono: '9212494549',
     direccion: 'Centro, Ixhuatlán del Sureste, Ver.', mensaje_ticket: '¡Gracias por tu visita!', zona: ZONA_DEFAULT,
-    horario: HORARIO, plan: 'plus', proHasta: null, galeria: [],
+    horario: { ...HORARIO, bloqueos: [{ desde: sumarDias(hoyYmd(), 2), inicio: '12:00', fin: '15:00', barbero: 'principal' }] },
+    plan: 'plus', proHasta: null, galeria: [],
   };
   cambiarPlanDemo('plus');
 }

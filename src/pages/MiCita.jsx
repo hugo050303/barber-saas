@@ -8,6 +8,7 @@ import { negocioPorSlug, citaPorId, cancelarPorCliente, recordarMiCita, esPro } 
 import { avisarBarberia } from '../lib/avisos';
 import { dinero, hora, fechaLarga, linkWhatsApp, usarZona } from '../lib/formato';
 import { Cargando } from '../components/ui';
+import { VolverDemo } from '../components/FranjaDemo';
 
 const fechaCalendario = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
@@ -67,6 +68,7 @@ export default function MiCita() {
 
   return (
     <div className="min-h-screen">
+      <VolverDemo />
       <header className="bg-ink text-paper">
         <div className="poste h-1.5" />
         <div className="mx-auto flex max-w-xl items-center gap-4 px-5 py-6">

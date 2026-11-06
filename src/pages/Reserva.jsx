@@ -10,6 +10,7 @@ import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona
 import { Cargando, Field } from '../components/ui';
 import BotonInstalar from '../components/BotonInstalar';
 import { MARCA } from '../config';
+import { VolverDemo } from '../components/FranjaDemo';
 
 function Paso({ n, titulo, activo, hecho, resumen, onEditar, children }) {
   return (
@@ -185,6 +186,7 @@ export default function Reserva() {
     const copiar = () => navigator.clipboard.writeText(miLink).then(() => toast.success('Link copiado'), () => toast.error('No se pudo copiar'));
     return (
       <div className="min-h-screen">
+        <VolverDemo />
         {encabezado}
         <main className="mx-auto max-w-xl px-5 py-10">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-verde text-white"><Check size={26} /></div>
@@ -218,6 +220,7 @@ export default function Reserva() {
 
   return (
     <div className="min-h-screen">
+      <VolverDemo />
       {encabezado}
       <main className="mx-auto max-w-xl px-5 pb-6 pt-2">
         {conFotos && negocio.galeria?.length > 0 && !sinCatalogo && paso === 1 && (

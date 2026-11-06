@@ -57,6 +57,12 @@ const HORARIO = {
   descansos: [{ nombre: 'Comida', inicio: '15:00', fin: '16:00', dias: [1, 2, 3, 4, 5] }, { nombre: 'Café', inicio: '12:00', fin: '12:15', dias: [] }],
   bloqueos: [], intervalo: 15, anticipacion: 30, diasMaximo: 14, cerrados: [],
 };
+// Fotos de la demo: logo y portada en public/demo; trabajos y barberos en src/assets/demo (se cargan solas)
+const FOTOS_TRABAJOS = Object.entries(import.meta.glob('../assets/demo/trabajos/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' }))
+  .sort(([a], [b]) => a.localeCompare(b)).slice(0, 12).map(([, url], slot) => ({ slot, url }));
+const FOTOS_BARBEROS = Object.fromEntries(Object.entries(import.meta.glob('../assets/demo/barberos/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' }))
+  .map(([ruta, url]) => [ruta.split('/').pop().replace(/\.\w+$/, ''), url]));
+
 const BARBEROS = [
   ['principal', { nombre: 'Toño', especialidad: 'Fades y degradados', porcentaje_comision: 50, activo: true, diasLibres: [1] }],
   ['b2', { nombre: 'Memo', especialidad: 'Barba y diseño', porcentaje_comision: 45, activo: true, diasLibres: [2],
@@ -84,7 +90,7 @@ function sembrar() {
   const hoy = hoyYmd();
   const ahora = Date.now();
 
-  for (const [id, b] of BARBEROS) mem.poner('barberos', id, b);
+  for (const [id, b] of BARBEROS) mem.poner('barberos', id, FOTOS_BARBEROS[id] ? { ...b, foto: FOTOS_BARBEROS[id] } : b);
   for (const [id, nombre, precio, duracion_min] of SERVICIOS) mem.poner('servicios', id, { nombre, precio, duracion_min });
   for (const [nombre, precio_venta, stock] of PRODUCTOS) mem.agregar('inventario', { nombre, precio_venta, stock, created_at: new Date().toISOString() });
 
@@ -176,7 +182,8 @@ export function iniciarDemo() {
     id: 'demo', nombre: 'Barbería Demo', slug: SLUG_DEMO, ownerUid: 'demo', whatsapp: '9212494549', telefono: '9212494549',
     direccion: 'Centro, Ixhuatlán del Sureste, Ver.', mensaje_ticket: '¡Gracias por tu visita!', zona: ZONA_DEFAULT,
     horario: { ...HORARIO, bloqueos: [{ desde: sumarDias(hoyYmd(), 2), inicio: '12:00', fin: '15:00', barbero: 'principal' }] },
-    plan: 'plus', proHasta: null, galeria: [],
+    plan: 'plus', proHasta: null,
+    logo: '/demo/logo.webp', portada: '/demo/portada.webp', galeria: FOTOS_TRABAJOS,
   };
   cambiarPlanDemo('plus');
 }

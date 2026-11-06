@@ -31,9 +31,9 @@ export const WHATSAPP_VENTAS = '9212494549';
 
 // Datos para el Aviso de Privacidad (/privacidad). Mientras estén vacíos, la página los marca como pendientes.
 export const PRIVACIDAD = {
-  responsable: '',   // tu nombre completo o razón social, ej. "Víctor Hugo Domínguez Domínguez"
-  domicilio: '',     // domicilio para oír y recibir notificaciones
-  correo: '',        // correo para solicitudes de privacidad (derechos ARCO)
+  responsable: 'Victor Hugo Dominguez Domínguez', // nombre completo o razón social
+  domicilio: 'Hilario C. Salas 228',               // domicilio para oír y recibir notificaciones
+  correo: 'hugo050303@gmail.com',                  // correo para solicitudes de privacidad (derechos ARCO)
   actualizado: '6 de noviembre de 2026',
 };
 

@@ -11,6 +11,7 @@ import { normalizarHorario, NOMBRES_DIA } from '../lib/horario';
 import { PageHeader, Field, Badge } from '../components/ui';
 import { FotoUnica, Galeria } from '../components/Fotos';
 import { MAX_FOTOS_GALERIA } from '../config';
+import MensajesWhatsApp from '../components/MensajesWhatsApp';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
 
@@ -196,6 +197,10 @@ export default function Configuracion() {
           <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">4</span><span>Ponlo también en tu bio de Instagram, Facebook y en tu estado de WhatsApp.</span></li>
         </ol>
         <a href="https://business.google.com/" target="_blank" rel="noreferrer" className="btn-ghost mt-4"><MapPin size={16} /> Abrir Perfil de Negocio</a>
+      </Seccion>
+
+      <Seccion titulo="Tu WhatsApp" texto="Que tu WhatsApp conteste solo con tu link de reservas. Gratis, con la app de WhatsApp Business.">
+        <MensajesWhatsApp negocio={negocio} url={urlReservas} key={`${negocio.nombre}|${JSON.stringify(negocio.horario)}`} />
       </Seccion>
 
       <Seccion titulo="Tu cuenta" texto={user.email}>

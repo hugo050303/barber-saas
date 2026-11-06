@@ -59,6 +59,7 @@ export default function Registro() {
             <Field label="Correo"><input className="input" type="email" required value={f.email} onChange={set('email')} autoComplete="email" /></Field>
             <Field label="Contraseña" hint="Mínimo 6 caracteres."><input className="input" type="password" required minLength={6} value={f.password} onChange={set('password')} autoComplete="new-password" /></Field>
             <button className="btn-rojo w-full py-3" disabled={enviando}>{enviando ? 'Creando tu barbería…' : 'Crear mi barbería'}</button>
+            <p className="text-xs text-ink-3">Al crear tu cuenta aceptas nuestro <Link to="/privacidad" target="_blank" className="underline">Aviso de privacidad</Link>.</p>
           </form>
         </>
       )}

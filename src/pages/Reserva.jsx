@@ -259,6 +259,7 @@ export default function Reserva() {
                     onChange={(e) => setDatos({ ...datos, telefono: soloDigitos(e.target.value).slice(0, 10) })} autoComplete="tel-national" />
                 </Field>
                 <button className="btn-rojo w-full py-3.5 text-base" disabled={enviando}>{enviando ? 'Apartando…' : 'Apartar mi lugar'}</button>
+                <p className="text-xs text-ink-3">{negocio.nombre} usará tus datos solo para tu cita. <Link to="/privacidad#clientes" target="_blank" className="underline">Aviso de privacidad</Link></p>
               </form>
             </Paso>
           </>

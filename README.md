@@ -46,6 +46,15 @@ Después, en Authentication → Configuración → **Dominios autorizados**, agr
 | `WHATSAPP_VENTAS` | Tu WhatsApp para que los dueños te pidan el plan Pro |
 | `MAX_FOTOS_GALERIA` | Fotos de trabajos por barbería |
 
+## Horarios (los decide cada barbería)
+
+- **Configuración → Horario:** plantillas de un toque, hasta 3 turnos por día, horas sin citas que se repiten
+  (comida, café, horas apagadas) con sus días, citas cada 10/15/20/30/45/60 min (con sugerencia según los
+  servicios), anticipación mínima, días máximos, días cerrados y vista previa de las horas.
+- **Agenda → Bloquear horas:** unas horas o días completos (vacaciones), para toda la barbería o un barbero.
+- **Equipo:** días de descanso y horario propio de cada barbero.
+- Lógica en `src/lib/horario.js` (acepta los formatos de horario anteriores). Pruebas: `npx vite-node tests/horario.mjs`.
+
 ## Modo demo (`/demo`)
 
 Botón "Probar la demo" en la página de ventas. Abre el panel completo de una barbería de ejemplo

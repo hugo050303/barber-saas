@@ -35,7 +35,7 @@ export async function borrarFila(tabla, id, pregunta) {
 }
 
 // Lista + modal de formulario genérico
-export function Catalogo({ tabla, filas, recargar, vacio, titulo, Formulario, columnas, puedeAgregar = true, bloqueo, textoAgregar = 'Agregar', idNuevo, formProps }) {
+export function Catalogo({ tabla, filas, recargar, vacio, titulo, Formulario, columnas, puedeAgregar = true, bloqueo, textoAgregar = 'Agregar', idNuevo, formProps, anchoModal }) {
   const [editando, setEditando] = useState(null); // null | {} (nuevo) | fila
   if (filas === null) return <Cargando />;
   const cerrar = () => setEditando(null);
@@ -65,7 +65,7 @@ export function Catalogo({ tabla, filas, recargar, vacio, titulo, Formulario, co
           </table>
         </div>
       )}
-      <Modal abierto={!!editando} onClose={cerrar} titulo={editando?.id ? `Editar ${titulo}` : `Nuevo ${titulo}`}>
+      <Modal abierto={!!editando} onClose={cerrar} titulo={editando?.id ? `Editar ${titulo}` : `Nuevo ${titulo}`} ancho={anchoModal}>
         {editando && <Formulario inicial={editando} onGuardar={alGuardar} {...formProps} />}
       </Modal>
     </>

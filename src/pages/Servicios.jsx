@@ -3,7 +3,7 @@ import { PageHeader, Field } from '../components/ui';
 import { Catalogo, useColeccion } from '../components/Catalogo';
 import { dinero } from '../lib/formato';
 
-const DURACIONES = [15, 20, 30, 40, 45, 60, 75, 90, 120];
+const DURACIONES = [10, 15, 20, 25, 30, 40, 45, 50, 60, 75, 90, 120, 150, 180];
 
 function Formulario({ inicial, onGuardar }) {
   const [f, setF] = useState({ nombre: inicial.nombre || '', precio: inicial.precio ?? '', duracion_min: inicial.duracion_min || 30 });

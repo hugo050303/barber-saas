@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle, Ban } from 'lucide-react';
+import BloquearHoras from '../components/BloquearHoras';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
 import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan } from '../lib/negocio';
-import { horariosLibres, horarioDelDia, chocaCon } from '../lib/horario';
-import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos } from '../lib/formato';
+import { horariosLibres, horarioDelDia, chocaCon, textoTurnos, horasSinCitas } from '../lib/horario';
+import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos, aHhmm } from '../lib/formato';
 import { PageHeader, Modal, Field, Badge, Cargando, Vacio } from '../components/ui';
 
 const ESTADOS = {
@@ -164,6 +165,7 @@ export default function Agenda() {
   const [citas, setCitas] = useState(null);
   const [nueva, setNueva] = useState(false);
   const [detalle, setDetalle] = useState(null);
+  const [bloquear, setBloquear] = useState(false);
 
   const cargar = useCallback(async () => {
     setCitas(null);
@@ -189,13 +191,14 @@ export default function Agenda() {
 
   return (
     <>
-      <PageHeader titulo="Agenda" sub={<span className="first-letter:uppercase">{esHoy ? 'Hoy, ' : ''}{diaLargo(dia)}{abierto ? ` · ${abierto.abre} a ${abierto.cierra}` : ' · cerrado'}</span>}>
+      <PageHeader titulo="Agenda" sub={<span className="first-letter:uppercase">{esHoy ? 'Hoy, ' : ''}{diaLargo(dia)}{abierto ? ` · ${textoTurnos(abierto.turnos)}` : ' · cerrado'}</span>}>
         <div className="flex items-center rounded border border-line bg-card">
           <button onClick={() => setDia(sumarDias(dia, -1))} className="p-2.5 hover:bg-paper" aria-label="Día anterior"><ChevronLeft size={18} /></button>
           <input type="date" className="w-[132px] bg-transparent px-1 py-2 text-sm outline-none" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} />
           <button onClick={() => setDia(sumarDias(dia, 1))} className="p-2.5 hover:bg-paper" aria-label="Día siguiente"><ChevronRight size={18} /></button>
         </div>
         {!esHoy && <button onClick={() => setDia(hoyYmd())} className="btn-ghost">Hoy</button>}
+        <button onClick={() => setBloquear(true)} disabled={!barberos.length} className="btn-ghost"><Ban size={16} /> Bloquear horas</button>
         <button onClick={() => setNueva(true)} disabled={!barberos.length || !servicios.length} className="btn-rojo"><Plus size={16} /> Nueva cita</button>
       </PageHeader>
 
@@ -213,6 +216,11 @@ export default function Agenda() {
             {barberos.map((b) => {
               const suyas = citas.filter((c) => c.barbero_id === b.id);
               const descansa = abierto && !horarioDelDia(negocio.horario, dia, b);
+              // Descansos y bloqueos del día, para verlos junto a las citas
+              const tapados = descansa ? [] : horasSinCitas(negocio.horario, dia, b).map(([ini, fin, nombre]) => ({
+                id: `t${ini}-${fin}-${nombre}`, tapado: true, nombre, fecha_hora: enZona(dia, aHhmm(ini)).toISOString(), fin: enZona(dia, aHhmm(fin)).toISOString(),
+              }));
+              const renglones = [...suyas, ...tapados].sort((x, y) => x.fecha_hora.localeCompare(y.fecha_hora));
               return (
                 <section key={b.id} className="card flex min-h-[320px] w-[82vw] shrink-0 snap-start flex-col sm:w-72 md:flex-1">
                   <header className="flex items-center justify-between border-b border-line px-4 py-3">
@@ -221,7 +229,16 @@ export default function Agenda() {
                   </header>
                   <div className="flex-1 space-y-2 p-2.5">
                     {suyas.length === 0 && <p className="px-2 py-10 text-center text-sm text-ink-3">{descansa ? 'Día de descanso' : 'Sin citas este día'}</p>}
-                    {suyas.map((c) => {
+                    {renglones.map((c) => {
+                      if (c.tapado) {
+                        return (
+                          <div key={c.id} className="flex items-center justify-between gap-2 rounded-sm border border-dashed border-line px-3 py-2 text-sm text-ink-3"
+                            style={{ backgroundImage: 'repeating-linear-gradient(-45deg, transparent 0 6px, rgba(26,23,20,0.04) 6px 12px)' }}>
+                            <span className="font-semibold">{c.nombre}</span>
+                            <span>{hora(c.fecha_hora)} – {hora(c.fin)}</span>
+                          </div>
+                        );
+                      }
                       const e = ESTADOS[c.estado] || ESTADOS.pendiente;
                       return (
                         <button key={c.id} onClick={() => setDetalle(c)} className={`block w-full rounded-sm border border-l-[3px] border-line bg-card px-3 py-2.5 text-left transition hover:border-ink ${e.borde}`}>
@@ -246,6 +263,7 @@ export default function Agenda() {
       <NuevaCita abierto={nueva} onClose={() => setNueva(false)} onGuardada={(d) => (d === dia ? cargar() : setDia(d))}
         barberos={barberos} servicios={servicios} diaInicial={dia} horario={negocio.horario} />
       <DetalleCita cita={detalle} onClose={() => setDetalle(null)} onCambio={cargar} negocio={negocio} />
+      {bloquear && <BloquearHoras abierto onClose={() => setBloquear(false)} negocio={negocio} barberos={barberos} diaInicial={dia < hoyYmd() ? hoyYmd() : dia} />}
     </>
   );
 }

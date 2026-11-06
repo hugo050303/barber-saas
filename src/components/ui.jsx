@@ -39,7 +39,8 @@ export function Field({ label, hint, children, className = '' }) {
   );
 }
 
-export function Modal({ abierto, onClose, titulo, children, ancho = 'max-w-md' }) {
+export function Modal({ abierto, onClose, titulo, children, ancho }) {
+  ancho = ancho || 'max-w-md';
   useEffect(() => {
     if (!abierto) return;
     const esc = (e) => e.key === 'Escape' && onClose();

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { MapPin, MessageCircle, Clock, Check } from 'lucide-react';
 import { db, usarNegocio } from '../db';
 import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan } from '../lib/negocio';
-import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS } from '../lib/horario';
+import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS, textoTurnos } from '../lib/horario';
 import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
 import BotonInstalar from '../components/BotonInstalar';
@@ -138,7 +138,7 @@ export default function Reserva() {
         <h1 className="display mt-2 text-5xl">{negocio.nombre}</h1>
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-paper/70">
           {negocio.direccion && <a href={`https://maps.google.com/?q=${encodeURIComponent(negocio.direccion)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-paper"><MapPin size={14} />{negocio.direccion}</a>}
-          <span className="flex items-center gap-1.5"><Clock size={14} />{hoy ? `Hoy de ${hoy.abre} a ${hoy.cierra}` : 'Hoy cerrado'}</span>
+          <span className="flex items-center gap-1.5"><Clock size={14} />{hoy ? `Hoy de ${textoTurnos(hoy.turnos)}` : 'Hoy cerrado'}</span>
           {negocio.whatsapp && <a href={linkWhatsApp(negocio.whatsapp, 'Hola, tengo una pregunta')} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-paper"><MessageCircle size={14} />WhatsApp</a>}
         </div>
       </div>

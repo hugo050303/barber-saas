@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "firebase": "^12.19.0",
+    "jose": "^6.2.15",
     "jspdf": "^3.0.4",
     "lucide-react": "^1.69.0",
     "react": "^19.2.0",

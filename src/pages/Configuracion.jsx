@@ -1,21 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import toast from 'react-hot-toast';
-import { X, MapPin, Copy } from 'lucide-react';
+import { MapPin, Copy, Clock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { auth } from '../firebase';
 import { actualizarNegocio } from '../lib/negocio';
 import { useSesion } from '../lib/sesion';
-import { soloDigitos, aMinutos, ZONAS, ZONA_DEFAULT, usarZona, diaCorto, hoyYmd, sumarDias, diaSemana, hora } from '../lib/formato';
-import { normalizarHorario, NOMBRES_DIA, PLANTILLAS, INTERVALOS, ORDEN_SEMANA, validarTurnos, sugerirIntervalo, bloqueosVigentes, horariosLibres, textoTurnos, turnosDelDia } from '../lib/horario';
-import { EditorTurnos, EditorDescansos, Interruptor } from '../components/EditorHorario';
-import { db } from '../db';
+import { soloDigitos, ZONAS, ZONA_DEFAULT, usarZona } from '../lib/formato';
 import { PageHeader, Field, Badge } from '../components/ui';
 import { FotoUnica, Galeria } from '../components/Fotos';
 import { MAX_FOTOS_GALERIA, FOTOS_ACTIVAS } from '../config';
 import MensajesWhatsApp from '../components/MensajesWhatsApp';
-
-const ORDEN_DIAS = ORDEN_SEMANA;
 
 function Seccion({ titulo, texto, children }) {
   return (
@@ -23,34 +18,6 @@ function Seccion({ titulo, texto, children }) {
       <div><h2 className="text-lg font-bold">{titulo}</h2>{texto && <p className="mt-1 text-sm text-ink-2">{texto}</p>}</div>
       <div className="max-w-xl">{children}</div>
     </section>
-  );
-}
-
-// Vista previa: qué horas verían tus clientes un día de la semana
-function VistaPrevia({ horario, servicios }) {
-  const [dia, setDia] = useState(6);
-  const duracion = servicios.length ? Math.min(...servicios.map((x) => Number(x.duracion_min) || 30)) : 30;
-  let ymd = sumarDias(hoyYmd(), 1);
-  while (diaSemana(ymd) !== dia) ymd = sumarDias(ymd, 1);
-  const turnos = turnosDelDia({ ...horario, cerrados: [], bloqueos: [] }, ymd);
-  const horas = horariosLibres({ ymd, horario: { ...horario, cerrados: [], bloqueos: [] }, duracion, ocupados: [], barbero: { id: '-' }, paraPanel: true });
-  return (
-    <div className="mt-6 rounded border border-dashed border-line p-4">
-      <p className="text-sm font-semibold">Vista previa: así verán tus horas</p>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {ORDEN_SEMANA.map((d) => (
-          <button type="button" key={d} onClick={() => setDia(d)} className={`w-12 rounded border py-1 text-xs font-semibold ${dia === d ? 'border-ink bg-ink text-paper' : 'border-line text-ink-3'}`}>{NOMBRES_DIA[d].slice(0, 3)}</button>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-ink-2">
-        {turnos.length ? <>{NOMBRES_DIA[dia]}: {textoTurnos(turnos)} · <b className="text-ink">{horas.length} horas</b> para un servicio de {duracion} min</> : `${NOMBRES_DIA[dia]}: cerrado`}
-      </p>
-      {horas.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {horas.map((x) => <span key={x} className="rounded-sm bg-paper px-1.5 py-0.5 text-xs">{hora(x)}</span>)}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -62,31 +29,16 @@ export default function Configuracion() {
     nombre: negocio.nombre || '', direccion: negocio.direccion || '', whatsapp: negocio.whatsapp || '',
     telefono: negocio.telefono || '', mensaje_ticket: negocio.mensaje_ticket || '', zona: negocio.zona || ZONA_DEFAULT,
   });
-  const [h, setH] = useState(() => normalizarHorario(negocio.horario));
-  const [nuevoCerrado, setNuevoCerrado] = useState('');
   const [guardando, setGuardando] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const [servicios, setServicios] = useState([]);
-  useEffect(() => { db.from('servicios').select('*').then(({ data }) => setServicios(data || [])); }, []);
-  const sugerido = sugerirIntervalo(servicios);
 
   async function guardar(e) {
     e.preventDefault();
-    for (const d of ORDEN_DIAS) {
-      const error = h.dias[d] && validarTurnos(h.dias[d].turnos, NOMBRES_DIA[d]);
-      if (error) return toast.error(error);
-    }
-    if (!ORDEN_DIAS.some((d) => h.dias[d])) return toast.error('Abre al menos un día a la semana.');
-    const malo = h.descansos.find((x) => aMinutos(x.fin) <= aMinutos(x.inicio));
-    if (malo) return toast.error(`${malo.nombre || 'Un descanso'}: debe terminar después de empezar.`);
     setGuardando(true);
     try {
-      const hoy = hoyYmd();
       await actualizarNegocio(negocio.id, {
         nombre: f.nombre.trim(), direccion: f.direccion.trim(), whatsapp: soloDigitos(f.whatsapp), telefono: soloDigitos(f.telefono),
         mensaje_ticket: f.mensaje_ticket.trim(), zona: f.zona,
-        // Los bloqueos se manejan en la Agenda: se toman los más recientes para no pisarlos
-        horario: { ...h, cerrados: h.cerrados.filter((x) => x >= hoy).sort(), bloqueos: bloqueosVigentes(normalizarHorario(negocio.horario).bloqueos) },
       });
       usarZona(f.zona);
       toast.success('Cambios guardados');
@@ -120,54 +72,15 @@ export default function Configuracion() {
           </div>
         </Seccion>
 
-        <Seccion titulo="Horario" texto="Tú decides cuándo se puede reservar: turnos por día, descansos que se repiten y días cerrados. Para tapar unas horas o un día suelto usa «Bloquear horas» en la Agenda; el horario de cada barbero se ajusta en Equipo.">
-          <p className="eyebrow mb-2">Empieza con una plantilla</p>
-          <div className="mb-5 grid gap-2 sm:grid-cols-2">
-            {PLANTILLAS.map((pl) => (
-              <button type="button" key={pl.id} onClick={() => { setH({ ...h, dias: structuredClone(pl.dias), descansos: structuredClone(pl.descansos) }); toast.success(`Plantilla "${pl.nombre}" aplicada. Ajusta lo que quieras y guarda.`); }}
-                className="card px-3 py-2.5 text-left hover:border-ink">
-                <span className="block text-sm font-semibold">{pl.nombre}</span>
-                <span className="block text-xs text-ink-3">{pl.detalle}</span>
-              </button>
-            ))}
-          </div>
-
-          <p className="eyebrow mb-2">Días y turnos</p>
-          <EditorTurnos dias={h.dias} onChange={(dias) => setH({ ...h, dias })} />
-          <p className="mt-1.5 text-xs text-ink-3">Hasta 3 turnos por día, por ejemplo 9:00 a 13:00 y 16:00 a 21:00.</p>
-
-          <p className="eyebrow mb-2 mt-6">Horas sin citas que se repiten</p>
-          <p className="mb-2 text-xs text-ink-3">Comida, café o cualquier hora que quieras apagar siempre. Elige en qué días aplica.</p>
-          <EditorDescansos descansos={h.descansos} onChange={(descansos) => setH({ ...h, descansos })} />
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label="Citas cada" hint={sugerido !== h.intervalo ? <>Según tus servicios te conviene <button type="button" className="font-semibold text-ink underline" onClick={() => setH({ ...h, intervalo: sugerido })}>cada {sugerido} min</button></> : 'Va bien con tus servicios.'}>
-              <select className="input" value={h.intervalo} onChange={(e) => setH({ ...h, intervalo: Number(e.target.value) })}>{INTERVALOS.map((m) => <option key={m} value={m}>{m} min</option>)}</select>
-            </Field>
-            <Field label="Reservar con al menos"><select className="input" value={h.anticipacion} onChange={(e) => setH({ ...h, anticipacion: Number(e.target.value) })}>{[[0, 'Sin mínimo'], [15, '15 min'], [30, '30 min'], [60, '1 hora'], [120, '2 horas'], [240, '4 horas'], [1440, '1 día']].map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></Field>
-            <Field label="Reservar hasta"><select className="input" value={h.diasMaximo} onChange={(e) => setH({ ...h, diasMaximo: Number(e.target.value) })}>{[7, 14, 21, 30, 60].map((v) => <option key={v} value={v}>{v} días antes</option>)}</select></Field>
-          </div>
-
-          <VistaPrevia horario={h} servicios={servicios} />
-
-          <div className="mt-6">
-            <p className="text-sm font-semibold">Días cerrados</p>
-            <p className="mt-0.5 text-xs text-ink-3">Vacaciones, días festivos o cualquier día que no abra toda la barbería.</p>
-            <div className="mt-2 flex gap-2">
-              <input type="date" className="input w-auto" min={hoyYmd()} value={nuevoCerrado} onChange={(e) => setNuevoCerrado(e.target.value)} />
-              <button type="button" className="btn-ghost" disabled={!nuevoCerrado} onClick={() => { if (!h.cerrados.includes(nuevoCerrado)) setH({ ...h, cerrados: [...h.cerrados, nuevoCerrado].sort() }); setNuevoCerrado(''); }}>Agregar</button>
-            </div>
-            {h.cerrados.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {h.cerrados.map((d) => (
-                  <span key={d} className="inline-flex items-center gap-1 rounded border border-line bg-card py-1 pl-2.5 pr-1 text-sm">
-                    {diaCorto(d)}
-                    <button type="button" onClick={() => setH({ ...h, cerrados: h.cerrados.filter((x) => x !== d) })} className="p-0.5 text-ink-3 hover:text-rojo" aria-label="Quitar"><X size={14} /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+        <Seccion titulo="Horario" texto="Turnos, descansos, días cerrados y el horario de cada barbero.">
+          <Link to="/app/horarios" className="card flex items-center gap-4 px-4 py-4 hover:border-ink">
+            <Clock size={22} className="shrink-0 text-rojo" />
+            <span className="flex-1">
+              <span className="block font-semibold">Ahora el horario tiene su propia sección</span>
+              <span className="block text-sm text-ink-2">Ves la semana dibujada y la editas tocando cada día.</span>
+            </span>
+            <ArrowRight size={18} className="text-ink-3" />
+          </Link>
         </Seccion>
 
         <Seccion titulo="Ticket" texto="Datos que salen impresos en el ticket de Caja.">

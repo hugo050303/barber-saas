@@ -65,9 +65,9 @@ const FOTOS_BARBEROS = Object.fromEntries(Object.entries(import.meta.glob('../as
 
 const BARBEROS = [
   ['principal', { nombre: 'Toño', especialidad: 'Fades y degradados', porcentaje_comision: 50, activo: true, diasLibres: [1] }],
-  ['b2', { nombre: 'Memo', especialidad: 'Barba y diseño', porcentaje_comision: 45, activo: true, diasLibres: [2],
+  ['b2', { nombre: 'Memo', especialidad: 'Barba y diseño', porcentaje_comision: 45, activo: true, diasLibres: [2], servicios: ['s1', 's3', 's4', 's6'],
     horarioPropio: { dias: { 0: null, 1: tu(['14:00', '21:00']), 2: null, 3: tu(['14:00', '21:00']), 4: tu(['14:00', '21:00']), 5: tu(['14:00', '21:00']), 6: tu(['10:00', '21:00']) } } }],
-  ['b3', { nombre: 'Iván', especialidad: 'Cortes clásicos', porcentaje_comision: 40, activo: true, diasLibres: [0] }],
+  ['b3', { nombre: 'Iván', especialidad: 'Cortes clásicos', porcentaje_comision: 40, activo: true, diasLibres: [0], servicios: ['s1', 's2', 's5'] }],
 ];
 const SERVICIOS = [
   ['s1', 'Corte clásico', 120, 30], ['s2', 'Fade / degradado', 150, 45], ['s3', 'Corte y barba', 200, 60],
@@ -114,6 +114,7 @@ function sembrar() {
       const cuantas = k < 0 ? 3 + Math.floor(r() * 4) : k === 0 ? 4 + Math.floor(r() * 3) : 1 + Math.floor(r() * 3);
       for (let n = 0; n < cuantas; n++) {
         const [servicioId, , precio, duracion] = servicioAzar();
+        if (barbero.servicios && !barbero.servicios.includes(servicioId)) continue; // no hace ese servicio
         const dia = turnos[Math.floor(r() * turnos.length)];
         const ini = aMinutos(dia.abre) + Math.floor(r() * ((aMinutos(dia.cierra) - aMinutos(dia.abre) - duracion) / 30)) * 30;
         const fin = ini + duracion;

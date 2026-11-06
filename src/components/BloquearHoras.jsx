@@ -8,8 +8,8 @@ import { aMinutos, diaCorto, hoyYmd } from '../lib/formato';
 import { Modal, Field, Badge } from './ui';
 import { Interruptor } from './EditorHorario';
 
-export default function BloquearHoras({ abierto, onClose, negocio, barberos, diaInicial }) {
-  const [f, setF] = useState({ barbero: '', desde: diaInicial, hasta: diaInicial, todoElDia: false, inicio: '12:00', fin: '15:00' });
+export default function BloquearHoras({ abierto, onClose, negocio, barberos, diaInicial, barberoInicial = '' }) {
+  const [f, setF] = useState({ barbero: barberoInicial, desde: diaInicial, hasta: diaInicial, todoElDia: false, inicio: '12:00', fin: '15:00' });
   const [guardando, setGuardando] = useState(false);
   const vigentes = bloqueosVigentes(normalizarHorario(negocio.horario).bloqueos).sort((a, b) => a.desde.localeCompare(b.desde));
   const nombreDe = (id) => (id ? barberos.find((b) => b.id === id)?.nombre || 'Barbero' : 'Toda la barbería');

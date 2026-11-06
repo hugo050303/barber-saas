@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MapPin, MessageCircle, Clock, Check } from 'lucide-react';
 import { db, usarNegocio } from '../db';
-import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan } from '../lib/negocio';
+import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan, haceServicio } from '../lib/negocio';
 import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS, textoTurnos } from '../lib/horario';
 import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
@@ -198,10 +198,12 @@ export default function Reserva() {
             <Paso n="1" titulo="¿Qué te vas a hacer?" activo={paso === 1} hecho={!!sel.servicio} onEditar={() => setPaso(1)}
               resumen={sel.servicio && `${sel.servicio.nombre} · ${dinero(sel.servicio.precio)}`}>
               <div className="divide-y divide-line rounded border border-line bg-card">
-                {servicios.map((s) => (
+                {servicios.filter((s) => barberos.some((b) => haceServicio(b, s))).map((s) => (
                   <button key={s.id} onClick={() => {
-                    const barbero = sel.barbero || (barberos.length === 1 ? barberos[0] : null);
-                    setSel({ ...sel, servicio: s, barbero, hora: null });
+                    // Solo los barberos que hacen este servicio; si el elegido no lo hace, se vuelve a elegir
+                    const pueden = barberos.filter((b) => haceServicio(b, s));
+                    const barbero = sel.barbero && haceServicio(sel.barbero, s) ? sel.barbero : pueden.length === 1 ? pueden[0] : null;
+                    setSel({ ...sel, servicio: s, barbero, ...(barbero?.id !== sel.barbero?.id ? { dia: null } : {}), hora: null });
                     setPaso(barbero ? 3 : 2);
                   }}
                     className={`flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left hover:bg-paper ${sel.servicio?.id === s.id ? 'bg-paper' : ''}`}>
@@ -214,7 +216,7 @@ export default function Reserva() {
 
             <Paso n="2" titulo="¿Con quién?" activo={paso === 2} hecho={!!sel.barbero} onEditar={() => setPaso(2)} resumen={sel.barbero?.nombre}>
               <div className="grid grid-cols-2 gap-2">
-                {barberos.map((b) => (
+                {barberos.filter((b) => !sel.servicio || haceServicio(b, sel.servicio)).map((b) => (
                   <button key={b.id} onClick={() => { setSel({ ...sel, barbero: b, dia: null, hora: null }); setPaso(3); }}
                     className={`flex items-center gap-3 rounded border px-3 py-3 text-left transition ${sel.barbero?.id === b.id ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>
                     {conFotos && b.foto && <img src={b.foto} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />}

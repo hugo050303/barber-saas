@@ -111,6 +111,14 @@ ok(!(await intenta(() => setDoc(doc(firestore, `negocios/${ua.uid}/ocupados/fals
 ok(!(await intenta(async () => { const b = writeBatch(firestore); const c = doc(collection(firestore, `negocios/${ua.uid}/citas`)); b.set(c, { cliente_nombre: 'X', cliente_telefono: '5550000000', fecha_hora: libres[5], barbero_id: 'principal', servicio_id: corte.id, precio: 150, estado: 'pendiente', origen: 'web' }); b.set(doc(firestore, `negocios/${ua.uid}/ocupados/${c.id}`), { barbero_id: 'principal', inicio: libres[5], duracion: 100000 }); await b.commit(); })), 'público NO bloquea días enteros');
 ok(!(await intenta(() => addDoc(collection(firestore, `negocios/${ua.uid}/citas`), { cliente_nombre: 'X', cliente_telefono: '5550000000', fecha_hora: libres[6], barbero_id: 'principal', servicio_id: corte.id, precio: 150, estado: 'finalizada', origen: 'web' }))), 'público NO crea citas terminadas');
 
+// Servicios por barbero: solo se reserva con quien hace ese servicio
+const conServicios = async (servicios) => { await signInWithEmailAndPassword(auth, 'a@test.com', 'secreto123'); await updateDoc(doc(firestore, `negocios/${ua.uid}/barberos/principal`), { servicios }); await salir(); usarNegocio(ua.uid); };
+await conServicios(['otro']);
+ok(!(await intenta(() => N.crearCita({ cliente: 'Sin servicio', telefono: '5554445555', inicio: libres[libres.length - 1], barbero: luis, servicio: corte, origen: 'web' }))), 'público NO reserva un servicio que el barbero no hace');
+await conServicios([corte.id]);
+ok(await intenta(() => N.crearCita({ cliente: 'Con servicio', telefono: '5554445555', inicio: libres[libres.length - 1], barbero: luis, servicio: corte, origen: 'web' })), 'público reserva un servicio que el barbero sí hace');
+await conServicios(null);
+
 // ---- Admin activa Pro y cierra el registro ----
 await signInWithEmailAndPassword(auth, 'hugo050303@gmail.com', 'secreto123');
 ok((await getDocs(collection(firestore, 'negocios'))).size === 3, 'admin lista barberías');
@@ -152,7 +160,7 @@ ok(x.data.length === 2 && x.data[0].descripcion === 'g4', 'paginación: limit tr
 x = await db.from('citas').select('*').order('fecha_hora');
 const citaJuan = x.data.find((c) => c.cliente_nombre === 'Juan');
 const citaWeb = x.data.find((c) => c.cliente_nombre === 'Web');
-ok(x.data.length === 3, 'A ve las 3 citas');
+ok(x.data.length === 4, 'A ve las 4 citas');
 await N.cambiarEstadoCita(citaJuan, 'finalizada');
 let juan = (await getDoc(doc(firestore, `negocios/${ua.uid}/clientes/5550001111`))).data();
 ok(juan.visitas === 1 && juan.gastado === 150 && juan.ultima === citaJuan.fecha_hora && juan.nombre === 'Juan', 'terminar cita suma visita y gasto al cliente');
@@ -160,9 +168,9 @@ await N.cambiarEstadoCita({ ...citaJuan, estado: 'finalizada' }, 'pendiente');
 juan = (await getDoc(doc(firestore, `negocios/${ua.uid}/clientes/5550001111`))).data();
 ok(juan.visitas === 0 && juan.gastado === 0, 'deshacer "terminada" resta la visita');
 await N.cambiarEstadoCita(citaWeb, 'cancelada');
-ok((await N.ocupadosDelDia(dia)).length === 2, 'cancelar libera el horario');
+ok((await N.ocupadosDelDia(dia)).length === 3, 'cancelar libera el horario');
 await N.eliminarCita(citaWeb);
-ok((await db.from('citas').select('*')).data.length === 2, 'eliminar cita');
+ok((await db.from('citas').select('*')).data.length === 3, 'eliminar cita');
 await deleteDoc(doc(firestore, `negocios/${ua.uid}/barberos/principal`));
 await salir();
 

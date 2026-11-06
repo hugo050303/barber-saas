@@ -235,3 +235,6 @@ export async function borrarCliente(id) {
   if (esDemo()) { mem.borrar('clientes', id); return; }
   await deleteDoc(doc(firestore, ruta('clientes'), id));
 }
+
+// ¿El barbero hace este servicio? (sin lista = hace todos)
+export const haceServicio = (barbero, servicio) => !Array.isArray(barbero?.servicios) || barbero.servicios.includes(servicio?.id ?? servicio);

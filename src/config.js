@@ -42,3 +42,7 @@ export const PRIVACIDAD = {
 export const FOTOS_ACTIVAS = true;
 export const FOTOS_PROVEEDOR = 'vercel'; // 'vercel' (Vercel Blob) o 'firebase' (Cloud Storage, requiere plan Blaze)
 export const MAX_FOTOS_GALERIA = 12;
+
+// Avisos al celular del barbero (notificaciones push). Esta es la llave pública; la privada va en
+// Vercel como VAPID_PRIVATE_KEY, junto con FIREBASE_SERVICE_ACCOUNT (ver README).
+export const VAPID_PUBLICA = 'BIEG0eRv4Et1NQw4ALmcr2CqEovAJXWmw4D8TY4Q3u6eLojUyghy0P70xGr9qq4ghQhw4tPbMQxG99Gfb9ItRVQ';

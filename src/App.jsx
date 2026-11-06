@@ -13,6 +13,7 @@ const Registro = lazy(() => import('./pages/Registro'));
 const Entrar = lazy(() => import('./pages/Entrar'));
 const CrearNegocio = lazy(() => import('./pages/CrearNegocio'));
 const Reserva = lazy(() => import('./pages/Reserva'));
+const MiCita = lazy(() => import('./pages/MiCita'));
 const NoEncontrado = lazy(() => import('./pages/NoEncontrado'));
 const Privacidad = lazy(() => import('./pages/Privacidad'));
 // Panel
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/crear-negocio" element={<CrearNegocio />} />
             <Route path="/r/:slug" element={<Reserva />} />
+            <Route path="/r/:slug/cita/:id" element={<MiCita />} />
             <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/demo" element={<EntrarDemo />} />
             <Route path="/reservar" element={<Navigate to="/" replace />} />

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle, Ban, CalendarClock, List } from 'lucide-react';
 import LineaTiempo from '../components/LineaTiempo';
+import { InvitarAvisos } from '../components/AvisosCelular';
 import BloquearHoras from '../components/BloquearHoras';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan, haceServicio } from '../lib/negocio';
+import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan, haceServicio, linkCita } from '../lib/negocio';
 import { horariosLibres, horarioDelDia, chocaCon, textoTurnos, horasSinCitas } from '../lib/horario';
 import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos, aHhmm, diaSemana, diaDelMes } from '../lib/formato';
 import { PageHeader, Modal, Field, Badge, Cargando } from '../components/ui';
@@ -144,7 +145,7 @@ function DetalleCita({ cita, onClose, onCambio, negocio, barberos }) {
     try { await fn(); toast.success(msg); onCambio(); onClose(); } catch { toast.error('No se pudo actualizar la cita.'); }
     setTrabajando(false);
   };
-  const recordatorio = `Hola ${cita.cliente_nombre}, te esperamos en ${negocio.nombre} el ${fechaLarga(cita.fecha_hora)} a las ${hora(cita.fecha_hora)} para tu ${cita.servicios?.nombre || 'cita'}. Si no puedes venir, avísanos por aquí.`;
+  const recordatorio = `Hola ${cita.cliente_nombre}, te esperamos en ${negocio.nombre} el ${fechaLarga(cita.fecha_hora)} a las ${hora(cita.fecha_hora)} para tu ${cita.servicios?.nombre || 'cita'}. Si necesitas cambiarla o cancelarla, hazlo aquí: ${linkCita(negocio.slug, cita.id)}`;
   const e = ESTADOS[cita.estado] || ESTADOS.pendiente;
   const barbero = barberos.find((b) => b.id === cita.barbero_id);
   const pasos = ['pendiente', 'confirmada', 'finalizada'];
@@ -152,7 +153,7 @@ function DetalleCita({ cita, onClose, onCambio, negocio, barberos }) {
   return (
     <Modal abierto onClose={onClose} titulo={cita.cliente_nombre}>
       <div className="mb-5">
-        <div className="flex flex-wrap gap-1.5"><Badge tono={e.tono}>{e.label}</Badge>{cita.origen === 'web' && <Badge tono="rojo"><Globe size={10} /> Reservó por link</Badge>}</div>
+        <div className="flex flex-wrap gap-1.5"><Badge tono={e.tono}>{e.label}</Badge>{cita.origen === 'web' && <Badge tono="rojo"><Globe size={10} /> Reservó por link</Badge>}{cita.cancelada_por === 'cliente' && <Badge tono="ambar">{cita.cambio ? 'El cliente la cambió de hora' : 'La canceló el cliente'}</Badge>}</div>
         <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded border border-line bg-line text-sm">
           {[
             ['Cuándo', <span key="c" className="first-letter:uppercase">{fechaLarga(cita.fecha_hora)} · {hora(cita.fecha_hora)}{cita.fin ? ` – ${hora(cita.fin)}` : ''}</span>, true],
@@ -296,7 +297,10 @@ const leerVista = () => { try { return localStorage.getItem('agendaVista') || 'h
 
 export default function Agenda() {
   const { negocio } = useSesion();
-  const [dia, setDia] = useState(() => hoyYmd());
+  const [params, setParams] = useSearchParams();
+  // ?dia=AAAA-MM-DD (lo usan los avisos al celular para abrir el día de la cita)
+  const [dia, setDia] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('dia') || '') ? params.get('dia') : hoyYmd()));
+  useEffect(() => { if (params.get('dia')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [barberos, setBarberos] = useState([]);
   const [servicios, setServicios] = useState([]);
   const [semana, setSemana] = useState({ lunes: null, citas: null }); // citas de toda la semana: cambiar de día es instantáneo
@@ -349,6 +353,7 @@ export default function Agenda() {
         <button onClick={() => setNueva({})} disabled={!barberos.length || !servicios.length} className="btn-rojo"><Plus size={16} /> Nueva cita</button>
       </PageHeader>
 
+      {listo && barberos.length > 0 && servicios.length > 0 && <InvitarAvisos />}
       {listo && (barberos.length === 0 || servicios.length === 0) && <Primeros barberos={barberos.length} servicios={servicios.length} />}
 
       {!listo ? <Cargando /> : barberos.length === 0 ? null : (

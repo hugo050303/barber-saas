@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MapPin, MessageCircle, Clock, Check } from 'lucide-react';
+import { MapPin, MessageCircle, Clock, Check, CalendarClock, Copy, ChevronRight } from 'lucide-react';
 import { db, usarNegocio } from '../db';
-import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan, haceServicio } from '../lib/negocio';
+import { negocioPorSlug, ocupadosDelDia, crearCita, esPro, barberosDelPlan, haceServicio, citaPorId, cancelarPorCliente, linkCita, misCitas, recordarMiCita } from '../lib/negocio';
+import { avisarBarberia } from '../lib/avisos';
 import { horariosLibres, diasReservables, horarioDelDia, DIAS_CORTOS, textoTurnos } from '../lib/horario';
 import { dinero, hora, fechaLarga, diaLargo, soloDigitos, linkWhatsApp, usarZona, hoyYmd, diaSemana, diaDelMes, partesZona } from '../lib/formato';
 import { Cargando, Field } from '../components/ui';
@@ -63,6 +64,11 @@ export default function Reserva() {
   const [datos, setDatos] = useState({ nombre: '', telefono: '' });
   const [enviando, setEnviando] = useState(false);
   const [listo, setListo] = useState(false);
+  const [citaId, setCitaId] = useState(null);
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [cambiando, setCambiando] = useState(null); // la cita que el cliente está cambiando de hora
+  const [proximas, setProximas] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -75,21 +81,38 @@ export default function Reserva() {
       if (!n) return;
       const [b, s] = await Promise.all([db.from('barberos').select('*').order('nombre'), db.from('servicios').select('*').order('nombre')]);
       // Solo los barberos activos que entran en el plan de la barbería
-      setBarberos(barberosDelPlan(n, (b.data || []).filter((x) => x.activo !== false)));
+      const bs = barberosDelPlan(n, (b.data || []).filter((x) => x.activo !== false));
+      setBarberos(bs);
       setServicios(s.data || []);
+      setProximas(misCitas(slug));
+      // ?cambiar={id}: el cliente cambia su cita (mismo servicio y barbero, otra hora)
+      const idCambio = params.get('cambiar');
+      if (idCambio) {
+        const vieja = await citaPorId(idCambio).catch(() => null);
+        const servicio = (s.data || []).find((x) => x.id === vieja?.servicio_id);
+        const barbero = bs.find((x) => x.id === vieja?.barbero_id);
+        if (vieja && ['pendiente', 'confirmada'].includes(vieja.estado) && new Date(vieja.fecha_hora) > new Date() && servicio && barbero) {
+          setCambiando(vieja);
+          setSel({ servicio, barbero, dia: null, hora: null });
+          setDatos({ nombre: vieja.cliente_nombre || '', telefono: vieja.cliente_telefono || '' });
+          setPaso(3);
+        } else if (vieja && !vieja.cambio) toast.error('Esa cita ya no se puede cambiar. Aparta una nueva.');
+      }
     })();
-  }, [slug]);
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sel.dia) return;
     setOcupados(null);
     ocupadosDelDia(sel.dia).then(setOcupados).catch(() => setOcupados([]));
   }, [sel.dia]);
+  // Al cambiar de hora, la cita vieja no estorba (se libera al confirmar la nueva)
+  const sinLaVieja = (lista) => (cambiando ? lista.filter((o) => o.id !== cambiando.id) : lista);
 
   const horario = negocio?.horario;
   const dias = negocio ? diasReservables(horario).filter((d) => !sel.barbero || horarioDelDia(horario, d, sel.barbero)) : [];
   const libres = sel.dia && ocupados && sel.barbero && sel.servicio
-    ? horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados, barbero: sel.barbero })
+    ? horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados: sinLaVieja(ocupados), barbero: sel.barbero })
     : [];
 
   async function confirmar(e) {
@@ -99,15 +122,20 @@ export default function Reserva() {
     try {
       // Revisar otra vez que la hora siga libre (alguien pudo ganarla)
       const frescos = await ocupadosDelDia(sel.dia);
-      const sigue = horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados: frescos, barbero: sel.barbero }).includes(sel.hora);
+      const sigue = horariosLibres({ ymd: sel.dia, horario, duracion: sel.servicio.duracion_min, ocupados: sinLaVieja(frescos), barbero: sel.barbero }).includes(sel.hora);
       if (!sigue) {
         setOcupados(frescos); setSel({ ...sel, hora: null }); setPaso(3);
         toast.error('Alguien acaba de apartar esa hora. Elige otra, por favor.');
         setEnviando(false);
         return;
       }
-      await crearCita({ cliente: datos.nombre, telefono: datos.telefono, inicio: sel.hora, barbero: sel.barbero, servicio: sel.servicio, origen: 'web' });
+      const id = await crearCita({ cliente: datos.nombre, telefono: datos.telefono, inicio: sel.hora, barbero: sel.barbero, servicio: sel.servicio, origen: 'web' });
+      if (cambiando) await cancelarPorCliente(cambiando, { cambio: true }).catch(() => {});
+      recordarMiCita(slug, id, sel.hora, cambiando?.id);
+      avisarBarberia(negocio.id, id, cambiando?.id);
+      setCitaId(id);
       setListo(true);
+      if (cambiando) navigate(`/r/${slug}`, { replace: true }); // al regresar no se intenta cambiar otra vez
     } catch {
       toast.error('No pudimos guardar tu cita. Inténtalo de nuevo.');
     }
@@ -152,19 +180,30 @@ export default function Reserva() {
   );
 
   if (listo) {
-    const msg = `Hola, soy ${datos.nombre}. Acabo de apartar ${sel.servicio.nombre} con ${sel.barbero.nombre} el ${fechaLarga(sel.hora)} a las ${hora(sel.hora)}.`;
+    const miLink = citaId ? linkCita(slug, citaId) : null;
+    const msg = `Hola, soy ${datos.nombre}. ${cambiando ? 'Cambié mi cita: ahora es' : 'Acabo de apartar'} ${sel.servicio.nombre} con ${sel.barbero.nombre} el ${fechaLarga(sel.hora)} a las ${hora(sel.hora)}.${miLink ? ` Mi cita: ${miLink}` : ''}`;
+    const copiar = () => navigator.clipboard.writeText(miLink).then(() => toast.success('Link copiado'), () => toast.error('No se pudo copiar'));
     return (
       <div className="min-h-screen">
         {encabezado}
         <main className="mx-auto max-w-xl px-5 py-10">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-verde text-white"><Check size={26} /></div>
-          <h2 className="display mt-5 text-5xl">Te esperamos</h2>
+          <h2 className="display mt-5 text-5xl">{cambiando ? 'Cita cambiada' : 'Te esperamos'}</h2>
           <div className="card mt-6 divide-y divide-line">
             {[['Servicio', `${sel.servicio.nombre} · ${dinero(sel.servicio.precio)}`], ['Con', sel.barbero.nombre], ['Día', fechaLarga(sel.hora)], ['Hora', hora(sel.hora)]].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 px-4 py-3"><span className="text-ink-3">{k}</span><span className="text-right font-semibold first-letter:uppercase">{v}</span></div>
             ))}
           </div>
-          <p className="mt-5 text-sm text-ink-2">Si no puedes llegar, avísale a la barbería para que alguien más aproveche tu lugar.</p>
+          {miLink && (
+            <div className="mt-5 rounded border border-dashed border-ink/30 bg-card p-4">
+              <p className="font-semibold">¿Te surgió algo?</p>
+              <p className="mt-0.5 text-sm text-ink-2">Con este link cambias la hora o cancelas tu cita tú mismo. Guárdalo (también va en tu mensaje de WhatsApp).</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Link to={`/r/${slug}/cita/${citaId}`} className="btn-ghost"><CalendarClock size={16} /> Ver mi cita</Link>
+                <button onClick={copiar} className="btn-ghost"><Copy size={16} /> Copiar link</button>
+              </div>
+            </div>
+          )}
           {negocio.whatsapp && (
             <a href={linkWhatsApp(negocio.whatsapp, msg)} target="_blank" rel="noreferrer" className="btn-primary mt-6 w-full py-3"><MessageCircle size={18} /> Avisar por WhatsApp</a>
           )}
@@ -191,6 +230,19 @@ export default function Reserva() {
             </div>
           </div>
         )}
+        {cambiando && (
+          <div className="mt-4 rounded border border-ambar/40 bg-ambar-soft px-4 py-3 text-sm">
+            <p className="font-semibold text-ink">Estás cambiando tu cita del <span className="first-letter:uppercase">{fechaLarga(cambiando.fecha_hora)}</span> a las {hora(cambiando.fecha_hora)}</p>
+            <p className="text-ink-2">Elige el nuevo día y hora. Tu cita actual se libera solo cuando confirmes la nueva. <Link to={`/r/${slug}/cita/${cambiando.id}`} className="font-semibold underline">No cambiar</Link></p>
+          </div>
+        )}
+        {!cambiando && proximas.map((c) => (
+          <Link key={c.id} to={`/r/${slug}/cita/${c.id}`} className="card mt-4 flex items-center gap-3 px-4 py-3 hover:border-ink">
+            <CalendarClock size={20} className="shrink-0 text-rojo" />
+            <span className="min-w-0 flex-1 text-sm"><span className="block font-semibold">Ya tienes cita: <span className="first-letter:uppercase">{fechaLarga(c.inicio)}</span> · {hora(c.inicio)}</span><span className="text-ink-2">Ver, cambiar o cancelar</span></span>
+            <ChevronRight size={18} className="text-ink-3" />
+          </Link>
+        ))}
         {sinCatalogo ? (
           <p className="py-12 text-center text-ink-2">Esta barbería todavía está preparando su agenda en línea. Mientras tanto, escríbeles por WhatsApp.</p>
         ) : (

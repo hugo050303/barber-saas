@@ -6,12 +6,13 @@ import { useSesion } from '../lib/sesion';
 import { nuevoCliente, guardarCliente, borrarCliente } from '../lib/negocio';
 import { dinero, fechaCorta, linkWhatsApp, soloDigitos, normalizar } from '../lib/formato';
 import { PageHeader, Cargando, Vacio, Modal, Field, Badge } from '../components/ui';
+import Recuperar from '../components/Recuperar';
 
 const POR_PAGINA = 50;
 const VISTAS = [
   ['frecuentes', 'Frecuentes'],
   ['nuevos', 'Nuevos'],
-  ['extrañan', 'Te extrañan'],
+  ['recuperar', 'Por recuperar'],
 ];
 
 function EditarCliente({ cliente, onClose, onGuardado }) {
@@ -60,10 +61,6 @@ function consulta(vista, q, max) {
     return base.gte(campo, valor).lte(campo, valor + '').order(campo).limit(max);
   }
   if (vista === 'nuevos') return base.order('created_at', { ascending: false }).limit(max);
-  if (vista === 'extrañan') {
-    const hace30 = new Date(Date.now() - 30 * 86400000).toISOString();
-    return base.lte('ultima', hace30).order('ultima', { ascending: false }).limit(max);
-  }
   return base.order('visitas', { ascending: false }).limit(max);
 }
 
@@ -80,7 +77,9 @@ export default function Clientes() {
 
   // Espera a que dejes de escribir antes de buscar (menos lecturas)
   useEffect(() => { const t = setTimeout(() => { setBusqueda(q); setMax(POR_PAGINA); }, 350); return () => clearTimeout(t); }, [q]);
+  const recuperando = vista === 'recuperar' && !busqueda;
   useEffect(() => {
+    if (recuperando) return undefined;
     let vigente = true;
     consulta(vista, busqueda, max).then(({ data, error }) => {
       if (!vigente) return;
@@ -88,7 +87,7 @@ export default function Clientes() {
       setFilas(data || []);
     });
     return () => { vigente = false; };
-  }, [vista, busqueda, max, recarga]);
+  }, [vista, busqueda, max, recarga, recuperando]);
 
   const diasDesde = (iso) => Math.floor((ahora - new Date(iso)) / 86400000);
   const recargar = () => setRecarga((n) => n + 1);
@@ -110,9 +109,9 @@ export default function Clientes() {
           ))}
         </div>
       )}
-      {filas === null ? <Cargando /> : filas.length === 0 ? (
-        <Vacio titulo={busqueda ? 'Nadie con ese nombre o teléfono' : vista === 'extrañan' ? 'Nadie lleva más de 30 días sin venir' : 'Aún no tienes clientes'}>
-          {!busqueda && vista !== 'extrañan' && 'Cuando alguien aparte por tu link o le agendes una cita, aparecerá aquí.'}
+      {recuperando ? <Recuperar key={recarga} negocio={negocio} onEditar={setEditando} /> : filas === null ? <Cargando /> : filas.length === 0 ? (
+        <Vacio titulo={busqueda ? 'Nadie con ese nombre o teléfono' : 'Aún no tienes clientes'}>
+          {!busqueda && 'Cuando alguien aparte por tu link o le agendes una cita, aparecerá aquí.'}
         </Vacio>
       ) : (
         <>

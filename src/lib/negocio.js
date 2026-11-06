@@ -238,3 +238,40 @@ export async function borrarCliente(id) {
 
 // ¿El barbero hace este servicio? (sin lista = hace todos)
 export const haceServicio = (barbero, servicio) => !Array.isArray(barbero?.servicios) || barbero.servicios.includes(servicio?.id ?? servicio);
+
+// ---------- La cita del cliente: link privado para verla, cancelarla o cambiarla ----------
+// El id de la cita es aleatorio (20 caracteres): quien tiene el link es quien apartó.
+export const linkCita = (slug, id) => `${window.location.origin}/r/${slug}/cita/${id}`;
+
+export async function citaPorId(id) {
+  if (esDemo()) return mem.obtener('citas', id);
+  const s = await getDoc(doc(firestore, ruta('citas'), String(id)));
+  return s.exists() ? { id: s.id, ...s.data() } : null;
+}
+
+// El cliente cancela (o cambia, si cambio = true): la hora queda libre para alguien más
+export async function cancelarPorCliente(cita, { cambio = false } = {}) {
+  const datos = { estado: 'cancelada', cancelada_por: 'cliente', cancelada_en: new Date().toISOString(), ...(cambio ? { cambio: true } : {}) };
+  if (esDemo()) { mem.poner('citas', cita.id, datos, { fusionar: true }); return; }
+  const batch = writeBatch(firestore);
+  batch.update(doc(firestore, ruta('citas'), cita.id), datos);
+  batch.delete(doc(firestore, ruta('ocupados'), cita.id));
+  await batch.commit();
+}
+
+// Citas que este celular apartó en una barbería (para mostrarle "tu próxima cita")
+const CLAVE_MIS_CITAS = 'misCitas';
+export function misCitas(slug) {
+  try { return (JSON.parse(localStorage.getItem(CLAVE_MIS_CITAS) || '{}')[slug] || []).filter((c) => c.inicio > new Date().toISOString()); }
+  catch { return []; }
+}
+export function recordarMiCita(slug, id, inicio, quitar = null) {
+  try {
+    const todo = JSON.parse(localStorage.getItem(CLAVE_MIS_CITAS) || '{}');
+    const ahora = new Date().toISOString();
+    const lista = (todo[slug] || []).filter((c) => c.inicio > ahora && c.id !== quitar && c.id !== id);
+    if (id) lista.push({ id, inicio });
+    todo[slug] = lista.slice(-5);
+    localStorage.setItem(CLAVE_MIS_CITAS, JSON.stringify(todo));
+  } catch { /* sin almacenamiento */ }
+}

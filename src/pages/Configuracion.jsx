@@ -11,6 +11,7 @@ import { PageHeader, Field, Badge } from '../components/ui';
 import { FotoUnica, Galeria } from '../components/Fotos';
 import { MAX_FOTOS_GALERIA, FOTOS_ACTIVAS } from '../config';
 import MensajesWhatsApp from '../components/MensajesWhatsApp';
+import AvisosCelular from '../components/AvisosCelular';
 
 function Seccion({ titulo, texto, children }) {
   return (
@@ -134,6 +135,10 @@ export default function Configuracion() {
 
       <Seccion titulo="Tu WhatsApp" texto="Que tu WhatsApp conteste solo con tu link de reservas. Gratis, con la app de WhatsApp Business.">
         <MensajesWhatsApp negocio={negocio} url={urlReservas} key={`${negocio.nombre}|${JSON.stringify(negocio.horario)}`} />
+      </Seccion>
+
+      <Seccion titulo="Avisos al celular" texto="Una notificación cuando un cliente aparta, cancela o cambia su cita por tu link.">
+        <AvisosCelular />
       </Seccion>
 
       {demo ? (

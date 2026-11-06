@@ -13,6 +13,7 @@ const Entrar = lazy(() => import('./pages/Entrar'));
 const CrearNegocio = lazy(() => import('./pages/CrearNegocio'));
 const Reserva = lazy(() => import('./pages/Reserva'));
 const NoEncontrado = lazy(() => import('./pages/NoEncontrado'));
+const Privacidad = lazy(() => import('./pages/Privacidad'));
 // Panel
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Clientes = lazy(() => import('./pages/Clientes'));
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/crear-negocio" element={<CrearNegocio />} />
             <Route path="/r/:slug" element={<Reserva />} />
+            <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/reservar" element={<Navigate to="/" replace />} />
 
             <Route path="/app" element={<ConNegocio><AppLayout /></ConNegocio>}>

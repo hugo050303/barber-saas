@@ -85,3 +85,24 @@ export function chocaCon(ocupados, barberoId, inicioIso, duracion) {
     return traslapa(a, b, x, x + (Number(o.duracion) || 30) * 60000);
   });
 }
+
+// "Lun a Vie 10:00 a 20:00 · Sáb 10:00 a 18:00" (agrupa días seguidos con el mismo horario)
+export function resumenHorario(horario) {
+  const h = normalizarHorario(horario);
+  const orden = [1, 2, 3, 4, 5, 6, 0];
+  const grupos = [];
+  for (const d of orden) {
+    const x = h.dias[d];
+    const clave = x ? `${x.abre} a ${x.cierra}` : null;
+    const ultimo = grupos[grupos.length - 1];
+    if (clave && ultimo && ultimo.clave === clave && orden.indexOf(ultimo.hasta) === orden.indexOf(d) - 1) ultimo.hasta = d;
+    else if (clave) grupos.push({ clave, desde: d, hasta: d });
+  }
+  const rango = (g) => {
+    if (g.hasta === g.desde) return DIAS_CORTOS[g.desde];
+    const union = orden.indexOf(g.hasta) - orden.indexOf(g.desde) === 1 ? ' y ' : ' a ';
+    return `${DIAS_CORTOS[g.desde]}${union}${DIAS_CORTOS[g.hasta]}`;
+  };
+  const txt = grupos.map((g) => `${rango(g)} ${g.clave}`).join(' · ');
+  return txt + (h.descanso ? ` (comida de ${h.descanso.inicio} a ${h.descanso.fin})` : '');
+}

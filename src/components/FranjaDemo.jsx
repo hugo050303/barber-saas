@@ -1,7 +1,8 @@
 // Franja fija del modo demo: avisa que nada se guarda y deja cambiar de plan al momento.
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useSesion } from '../lib/sesion';
-import { cambiarPlanDemo, salirDeLaDemo } from '../lib/demo';
+import { cambiarPlanDemo, salirDeLaDemo, esDemo } from '../lib/demo';
 import { PLANES } from '../config';
 
 export default function FranjaDemo() {
@@ -22,6 +23,19 @@ export default function FranjaDemo() {
           </div>
           <button onClick={() => salirDeLaDemo('/registro')} className="btn-rojo hidden px-3 py-1.5 lg:inline-flex">Crear mi barbería <ArrowRight size={15} /></button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// En la página de reservas de la demo: regresar al panel sin recargar (si se recarga, la demo empieza de cero)
+export function VolverDemo() {
+  if (!esDemo()) return null;
+  return (
+    <div className="sticky top-0 z-40 border-b border-rojo/30 bg-rojo-soft">
+      <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-5 py-2">
+        <p className="text-sm text-rojo-dark"><b>Demo:</b> así ven tus clientes tu página.</p>
+        <Link to="/app" className="btn-primary shrink-0 px-3 py-1.5 text-sm"><ArrowLeft size={15} /> Volver a mi panel</Link>
       </div>
     </div>
   );

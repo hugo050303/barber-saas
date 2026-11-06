@@ -1,6 +1,6 @@
 // Horario de la barbería y cálculo de horas libres para reservar.
 //
-// Modelo (lo decide el dueño en Configuración, Equipo y Agenda):
+// Modelo (lo decide el dueño en Horarios y Agenda):
 //   dias:       por día de la semana (0 = domingo): null = cerrado, o { turnos: [{ abre, cierra }] } (hasta 3 turnos)
 //   descansos:  horas sin citas que se repiten cada semana: [{ nombre, inicio, fin, dias: [0..6] }] (dias vacío = todos)
 //   bloqueos:   fechas u horas sueltas sin citas: [{ desde, hasta, inicio?, fin?, barbero? }]
@@ -96,6 +96,9 @@ export function horarioDelDia(horario, ymd, barbero) {
   return turnos.length ? { turnos } : null;
 }
 
+// "10–20", "9:30–14" (para resúmenes cortos)
+export const horaCorta = (m) => { const h = Math.floor(m / 60); const mm = m % 60; return mm ? `${h}:${String(mm).padStart(2, '0')}` : `${h}`; };
+export const rangoCorto = (t) => `${horaCorta(aMinutos(t.abre))}–${horaCorta(aMinutos(t.cierra))}`;
 export const textoTurnos = (turnos) => (turnos || []).map((x) => `${x.abre} a ${x.cierra}`).join(' y ');
 
 // Rangos (en minutos) sin citas para ese día: descansos que se repiten y bloqueos de horas

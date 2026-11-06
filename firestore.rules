@@ -123,6 +123,8 @@ service cloud.firestore {
         && c.cliente_telefono is string && c.cliente_telefono.matches('^[0-9]{10}$')
         && c.fecha_hora is string
         && exists(barbero) && get(barbero).data.get('activo', true) != false
+        // Si el barbero solo hace algunos servicios, el elegido debe ser uno de ellos
+        && (get(barbero).data.get('servicios', null) == null || c.servicio_id in get(barbero).data.servicios)
         && exists(servicio) && c.precio == get(servicio).data.precio;
     }
 

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Tra
 import BloquearHoras from '../components/BloquearHoras';
 import { db } from '../db';
 import { useSesion } from '../lib/sesion';
-import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan } from '../lib/negocio';
+import { crearCita, cambiarEstadoCita, eliminarCita, ocupadosDelDia, barberosDelPlan, haceServicio } from '../lib/negocio';
 import { horariosLibres, horarioDelDia, chocaCon, textoTurnos, horasSinCitas } from '../lib/horario';
 import { inicioDia, finDia, hora, fechaLarga, diaLargo, hoyYmd, sumarDias, enZona, horaYmd, dinero, linkWhatsApp, soloDigitos, aHhmm } from '../lib/formato';
 import { PageHeader, Modal, Field, Badge, Cargando, Vacio } from '../components/ui';
@@ -102,8 +102,14 @@ function NuevaCita({ abierto, onClose, onGuardada, barberos, servicios, diaInici
         <div className="grid grid-cols-2 gap-3">
           <Field label="Cliente" className="col-span-2 sm:col-span-1"><input className="input" required value={f.cliente} onChange={set('cliente')} /></Field>
           <Field label="WhatsApp" className="col-span-2 sm:col-span-1"><input className="input" inputMode="numeric" placeholder="10 dígitos" value={f.telefono} onChange={(e) => setF({ ...f, telefono: soloDigitos(e.target.value).slice(0, 10) })} /></Field>
-          <Field label="Servicio"><select className="input" required value={f.servicioId} onChange={set('servicioId')}><option value="">Elegir…</option>{servicios.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select></Field>
-          <Field label="Barbero"><select className="input" required value={f.barberoId} onChange={set('barberoId')}><option value="">Elegir…</option>{barberos.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}</select></Field>
+          <Field label="Servicio"><select className="input" required value={f.servicioId} onChange={(e) => {
+            // Si el barbero elegido no hace ese servicio, se quita (o se pone el único que lo hace)
+            const s = servicios.find((x) => x.id === e.target.value);
+            const pueden = s ? barberos.filter((b) => haceServicio(b, s)) : barberos;
+            const sigue = pueden.some((b) => b.id === f.barberoId);
+            setF({ ...f, servicioId: e.target.value, barberoId: sigue ? f.barberoId : pueden.length === 1 ? pueden[0].id : '' });
+          }}><option value="">Elegir…</option>{servicios.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}</select></Field>
+          <Field label="Barbero"><select className="input" required value={f.barberoId} onChange={set('barberoId')}><option value="">Elegir…</option>{barberos.filter((b) => !servicio || haceServicio(b, servicio)).map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}</select></Field>
           <Field label="Día"><input className="input" type="date" required value={f.fecha} onChange={set('fecha')} /></Field>
           <Field label="Hora"><input className="input" type="time" required value={f.hora} onChange={set('hora')} /></Field>
         </div>

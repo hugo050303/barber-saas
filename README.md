@@ -48,11 +48,16 @@ Después, en Authentication → Configuración → **Dominios autorizados**, agr
 
 ## Horarios (los decide cada barbería)
 
-- **Configuración → Horario:** plantillas de un toque, hasta 3 turnos por día, horas sin citas que se repiten
-  (comida, café, horas apagadas) con sus días, citas cada 10/15/20/30/45/60 min (con sugerencia según los
-  servicios), anticipación mínima, días máximos, días cerrados y vista previa de las horas.
-- **Agenda → Bloquear horas:** unas horas o días completos (vacaciones), para toda la barbería o un barbero.
-- **Equipo:** días de descanso y horario propio de cada barbero.
+- **Sección Horarios** (menú Negocio): la semana dibujada como barras (abierto en negro, descansos rayados,
+  cerrado en gris). Se toca un día para editarlo ahí mismo: atajos (corrido, mañana y tarde…), hasta 3 turnos y
+  "copiar a" otros días. Pestañas:
+  - **Barbería:** tabla "Quién trabaja cuándo", plantillas, horas sin citas que se repiten (comida, café…),
+    citas cada 10–60 min (con sugerencia), anticipación, días máximos, vista previa y días cerrados.
+  - **Una por barbero:** "Igual que la barbería" o "Su propio horario" (con el de la barbería de fondo),
+    días de descanso, servicios que hace, bloqueos y vista previa de sus horas.
+- **Bloquear horas o días** (Agenda y Horarios): unas horas o días completos, para la barbería o un barbero.
+- **Equipo → Servicios que hace:** cada barbero hace todos o solo algunos. La página de reservas y la Agenda
+  solo ofrecen a quien hace el servicio elegido (las reglas de Firestore también lo validan).
 - Lógica en `src/lib/horario.js` (acepta los formatos de horario anteriores). Pruebas: `npx vite-node tests/horario.mjs`.
 
 ## Modo demo (`/demo`)

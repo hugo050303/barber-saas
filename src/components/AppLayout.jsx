@@ -3,7 +3,7 @@ import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import {
   CalendarDays, Users, Scissors, UserRound, ShoppingBag, Package, Receipt, Calculator,
-  Wallet, BarChart3, Settings, LogOut, Menu, X, Lock, Shield, ExternalLink, Crown,
+  Wallet, BarChart3, Settings, Clock, LogOut, Menu, X, Lock, Shield, ExternalLink, Crown,
 } from 'lucide-react';
 import { auth } from '../firebase';
 import { useSesion } from '../lib/sesion';
@@ -23,6 +23,7 @@ const NAV = [
   { grupo: 'Negocio', items: [
     { to: '/app/servicios', label: 'Servicios', icon: Scissors },
     { to: '/app/equipo', label: 'Equipo', icon: UserRound },
+    { to: '/app/horarios', label: 'Horarios', icon: Clock },
     { to: '/app/inventario', label: 'Inventario', icon: Package, pro: true },
     { to: '/app/gastos', label: 'Gastos', icon: Receipt, pro: true },
     { to: '/app/nomina', label: 'Nómina', icon: Wallet, pro: true },

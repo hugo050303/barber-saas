@@ -20,6 +20,7 @@ const Agenda = lazy(() => import('./pages/Agenda'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const Servicios = lazy(() => import('./pages/Servicios'));
 const Equipo = lazy(() => import('./pages/Equipo'));
+const Horarios = lazy(() => import('./pages/Horarios'));
 const Venta = lazy(() => import('./pages/Venta'));
 const CorteCaja = lazy(() => import('./pages/CorteCaja'));
 const Inventario = lazy(() => import('./pages/Inventario'));
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="clientes" element={<Clientes />} />
               <Route path="servicios" element={<Servicios />} />
               <Route path="equipo" element={<Equipo />} />
+              <Route path="horarios" element={<Horarios />} />
               <Route path="venta" element={<Venta />} />
               <Route path="corte" element={<CorteCaja />} />
               <Route path="inventario" element={<Inventario />} />

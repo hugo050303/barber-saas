@@ -1,8 +1,10 @@
 // Función de Vercel: avisos al celular del barbero (ver server/avisos.js).
 //   GET  /api/avisos                                                 -> llave pública para activar los avisos
 //   POST /api/avisos { accion: 'cita', negocio, cita, anterior? }  -> la página de reservas, tras apartar/cancelar/cambiar
+//   POST /api/avisos { accion: 'recordatorio', negocio, cita, suscripcion } -> el cliente pide que le recuerden su cita
 //   POST /api/avisos { accion: 'probar', idToken }                  -> el dueño se manda un aviso de prueba
 import { avisarCita, avisoDePrueba, llavePublica } from '../server/avisos.js';
+import { guardarRecordatorio } from '../server/rutinas.js';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -14,6 +16,7 @@ export default async function handler(req, res) {
   try {
     if (body?.accion === 'probar') return res.status(200).json(await avisoDePrueba(body));
     if (body?.accion === 'cita') return res.status(200).json(await avisarCita(body));
+    if (body?.accion === 'recordatorio') return res.status(200).json(await guardarRecordatorio(body));
     return res.status(400).json({ error: 'Acción desconocida' });
   } catch (e) {
     return res.status(e.status || 500).json({ error: e.status ? e.message : 'No se pudo mandar el aviso.' });

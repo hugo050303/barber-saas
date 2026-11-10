@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle, Ban, CalendarClock, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, MessageCircle, Copy, Check, Globe, Trash2, Moon, AlertTriangle, Ban, CalendarClock, List, Star } from 'lucide-react';
 import LineaTiempo from '../components/LineaTiempo';
 import { InvitarAvisos } from '../components/AvisosCelular';
 import BloquearHoras from '../components/BloquearHoras';
@@ -137,9 +137,51 @@ function NuevaCita({ abierto, onClose, onGuardada, barberos, servicios, diaInici
   );
 }
 
-function DetalleCita({ cita, onClose, onCambio, negocio, barberos }) {
+// Mensaje para pedir la reseña de Google por WhatsApp
+const mensajeResena = (negocio, cita) => `¡Gracias por venir a ${negocio.nombre}, ${String(cita.cliente_nombre || '').trim().split(/\s+/)[0]}! 🙌 ¿Nos ayudas con una reseña en Google? Toma un minuto y nos ayuda muchísimo: ${negocio.link_resenas}`;
+
+function PedirResena({ cita, negocio, onPedida, destacada }) {
+  if (cita.estado !== 'finalizada' || !cita.cliente_telefono) return null;
+  if (!negocio.link_resenas) {
+    return <p className="rounded bg-paper px-3 py-2.5 text-sm text-ink-2"><Star size={14} className="mb-0.5 mr-1 inline text-ambar" />¿Le pides una reseña en Google? <Link to="/app/configuracion#resenas" className="font-semibold text-ink underline">Pon tu link de reseñas</Link> y lo haces con un toque.</p>;
+  }
+  if (cita.resena_pedida) {
+    return (
+      <p className="flex items-center justify-between gap-2 rounded bg-verde-soft px-3 py-2.5 text-sm text-verde">
+        <span className="flex items-center gap-1.5"><Check size={15} /> Ya le pediste su reseña</span>
+        <a href={linkWhatsApp(cita.cliente_telefono, mensajeResena(negocio, cita))} target="_blank" rel="noreferrer" className="font-semibold underline">Otra vez</a>
+      </p>
+    );
+  }
+  return (
+    <div className={`rounded border p-4 ${destacada ? 'border-ambar/50 bg-ambar-soft' : 'border-line bg-card'}`}>
+      <p className="flex items-center gap-1 font-semibold">{destacada ? 'Cobrado. ¿Le pides una reseña?' : '¿Le pides una reseña?'} {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={13} className="fill-ambar text-ambar" />)}</p>
+      <p className="mt-0.5 text-sm text-ink-2">Las reseñas te suben en Google Maps. Le llega por WhatsApp con tu link.</p>
+      <a href={linkWhatsApp(cita.cliente_telefono, mensajeResena(negocio, cita))} target="_blank" rel="noreferrer" onClick={onPedida} className="btn-primary mt-3 w-full py-2.5"><MessageCircle size={16} /> Pedir reseña por WhatsApp</a>
+    </div>
+  );
+}
+
+function DetalleCita({ cita: original, onClose, onCambio, negocio, barberos }) {
   const [trabajando, setTrabajando] = useState(false);
-  if (!cita) return null;
+  const [cambios, setCambios] = useState({});
+  if (!original) return null;
+  const cita = { ...original, ...cambios };
+  // Al cobrar, si se puede pedir reseña, la ventana se queda abierta para ofrecerlo
+  async function cobrar() {
+    setTrabajando(true);
+    try {
+      await cambiarEstadoCita(cita, 'finalizada'); toast.success('Servicio terminado'); onCambio();
+      if (cita.cliente_telefono && negocio.link_resenas && !cita.resena_pedida) setCambios({ ...cambios, estado: 'finalizada', recienCobrada: true });
+      else onClose();
+    } catch { toast.error('No se pudo actualizar la cita.'); }
+    setTrabajando(false);
+  }
+  async function resenaPedida() {
+    setCambios({ ...cambios, resena_pedida: true });
+    await db.from('citas').update({ resena_pedida: true }).eq('id', cita.id);
+    onCambio();
+  }
   const accion = async (fn, msg) => {
     setTrabajando(true);
     try { await fn(); toast.success(msg); onCambio(); onClose(); } catch { toast.error('No se pudo actualizar la cita.'); }
@@ -177,7 +219,8 @@ function DetalleCita({ cita, onClose, onCambio, negocio, barberos }) {
         )}
       </div>
       <div className="grid gap-2">
-        {cita.estado !== 'finalizada' && cita.estado !== 'cancelada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'finalizada'), 'Servicio terminado')} className="btn-primary py-3"><Check size={16} /> Terminado y cobrado</button>}
+        {cita.recienCobrada && <PedirResena cita={cita} negocio={negocio} onPedida={resenaPedida} destacada />}
+        {cita.estado !== 'finalizada' && cita.estado !== 'cancelada' && <button disabled={trabajando} onClick={cobrar} className="btn-primary py-3"><Check size={16} /> Terminado y cobrado</button>}
         <div className="grid grid-cols-2 gap-2">
           {cita.cliente_telefono && <a href={linkWhatsApp(cita.cliente_telefono, recordatorio)} target="_blank" rel="noreferrer" className="btn-ghost"><MessageCircle size={16} /> Recordar</a>}
           {cita.estado === 'pendiente' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'confirmada'), 'Cita confirmada')} className="btn-ghost">Confirmar</button>}
@@ -185,6 +228,7 @@ function DetalleCita({ cita, onClose, onCambio, negocio, barberos }) {
           {cita.estado !== 'cancelada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'cancelada'), 'Cita cancelada')} className="btn-ghost text-rojo">Cancelar</button>}
           {cita.estado === 'cancelada' && <button disabled={trabajando} onClick={() => accion(() => cambiarEstadoCita(cita, 'pendiente'), 'Cita reactivada')} className="btn-ghost">Reactivar</button>}
         </div>
+        {!cita.recienCobrada && <div className="mt-1"><PedirResena cita={cita} negocio={negocio} onPedida={resenaPedida} /></div>}
         <button disabled={trabajando} onClick={() => window.confirm('¿Borrar esta cita para siempre?') && accion(() => eliminarCita(cita), 'Cita borrada')} className="btn-link mt-1 justify-start text-sm text-ink-3"><Trash2 size={14} /> Borrar del historial</button>
       </div>
     </Modal>
@@ -399,7 +443,7 @@ export default function Agenda() {
 
       <NuevaCita abierto={!!nueva} preset={nueva} onClose={() => setNueva(null)} onGuardada={(d) => (d === dia ? cargar() : setDia(d))}
         barberos={barberos} servicios={servicios} diaInicial={dia} horario={negocio.horario} />
-      <DetalleCita cita={detalle} onClose={() => setDetalle(null)} onCambio={cargar} negocio={negocio} barberos={barberos} />
+      <DetalleCita key={detalle?.id || 'nada'} cita={detalle} onClose={() => setDetalle(null)} onCambio={cargar} negocio={negocio} barberos={barberos} />
       {bloquear && <BloquearHoras abierto onClose={() => setBloquear(false)} negocio={negocio} barberos={barberos} diaInicial={dia < hoyYmd() ? hoyYmd() : dia} />}
     </>
   );

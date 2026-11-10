@@ -2,7 +2,8 @@
 // compacto: la tarjetita de la Agenda que invita a activarlos.
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Bell, BellRing, Smartphone, X } from 'lucide-react';
+import { Bell, BellRing, Smartphone, X, Moon } from 'lucide-react';
+import { actualizarNegocio } from '../lib/negocio';
 import { soportaAvisos, iphoneSinInstalar, permisoAvisos, avisosActivos, activarAvisos, desactivarAvisos, listarDispositivos, quitarDispositivo, probarAvisos } from '../lib/avisos';
 import { useSesion } from '../lib/sesion';
 import { Interruptor } from './EditorHorario';
@@ -96,6 +97,34 @@ export default function AvisosCelular() {
         </div>
       )}
       <p className="text-xs text-ink-3">Actívalos en cada celular o computadora donde quieras recibirlos (por ejemplo, el tuyo y el de la recepción).</p>
+      <ResumenNoche />
+    </div>
+  );
+}
+
+// Resumen de la noche: "Mañana tienes 8 citas, la primera a las 10:00"
+const HORAS_RESUMEN = [18, 19, 20, 21, 22];
+function ResumenNoche() {
+  const { negocio } = useSesion();
+  const activo = negocio.resumen_activo !== false;
+  const hora = Number.isInteger(negocio.resumen_hora) ? negocio.resumen_hora : 20;
+  const guardar = (campos, mensaje) => actualizarNegocio(negocio.id, campos).then(() => toast.success(mensaje), () => toast.error('No se pudo guardar.'));
+  return (
+    <div className="border-t border-line pt-4">
+      <label className="flex items-center gap-3">
+        <Interruptor activo={activo} label="Resumen de mañana" onChange={(v) => guardar({ resumen_activo: v }, v ? 'Resumen de la noche activado' : 'Resumen de la noche apagado')} />
+        <span><span className="flex items-center gap-1.5 font-semibold"><Moon size={15} /> Resumen de mañana</span>
+          <span className="block text-sm text-ink-2">Cada noche te llega cuántas citas tienes mañana y a qué hora es la primera.</span></span>
+      </label>
+      {activo && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-ink-2">Mandármelo a las</span>
+          {HORAS_RESUMEN.map((h) => (
+            <button key={h} type="button" aria-pressed={hora === h} onClick={() => guardar({ resumen_hora: h }, `Te llegará a las ${h}:00`)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${hora === h ? 'border-ink bg-ink text-paper' : 'border-line bg-card hover:border-ink'}`}>{h}:00</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

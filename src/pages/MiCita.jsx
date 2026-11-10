@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CalendarPlus, MapPin, MessageCircle, CalendarClock, X, Check, Ban } from 'lucide-react';
+import { CalendarPlus, MapPin, MessageCircle, CalendarClock, X, Check, Ban, Star } from 'lucide-react';
 import { db, usarNegocio } from '../db';
 import { negocioPorSlug, citaPorId, cancelarPorCliente, recordarMiCita, esPro } from '../lib/negocio';
 import { avisarBarberia } from '../lib/avisos';
 import { dinero, hora, fechaLarga, linkWhatsApp, usarZona } from '../lib/formato';
 import { Cargando } from '../components/ui';
 import { VolverDemo } from '../components/FranjaDemo';
+import RecordatorioCita from '../components/RecordatorioCita';
 
 const fechaCalendario = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
@@ -102,6 +103,8 @@ export default function MiCita() {
           </div>
         )}
 
+        {sePuedeCambiar && <RecordatorioCita negocioId={negocio.id} citaId={cita.id} className="mt-4" />}
+
         {confirmar && (
           <div className="card mt-4 border-rojo p-4">
             <p className="font-semibold">¿Seguro que quieres cancelar?</p>
@@ -116,6 +119,13 @@ export default function MiCita() {
         {!sePuedeCambiar && (
           <div className="mt-6">
             <p className="text-ink-2">{cancelada ? 'Esta cita ya no está apartada.' : terminada ? '¡Gracias por venir!' : 'Esta cita ya pasó.'}</p>
+            {terminada && negocio.link_resenas && (
+              <div className="card mt-4 p-4">
+                <p className="flex items-center gap-1 font-semibold">¿Qué tal tu corte? {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={15} className="fill-ambar text-ambar" />)}</p>
+                <p className="mt-0.5 text-sm text-ink-2">Tu reseña en Google ayuda a {negocio.nombre} a que más gente la encuentre. Toma un minuto.</p>
+                <a href={negocio.link_resenas} target="_blank" rel="noreferrer" className="btn-primary mt-3 w-full py-3"><Star size={17} /> Dejar mi reseña</a>
+              </div>
+            )}
             <Link to={`/r/${slug}`} className="btn-primary mt-4 w-full py-3"><Check size={18} /> Apartar otra cita</Link>
           </div>
         )}

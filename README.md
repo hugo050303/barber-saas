@@ -109,6 +109,22 @@ Cómo funciona:
 Lógica en `server/avisos.js` (`api/avisos.js`). Pruebas: `npx vite-node tests/avisos.mjs` (con el emulador
 de Firestore también prueba la lectura real).
 
+## Reseñas, resumen de la noche y recordatorios
+
+- **Reseñas en Google:** en Configuración → Reseñas en Google la barbería pega su link
+  (Perfil de Negocio → «Pedir reseñas»). Al marcar una cita como cobrada, la Agenda ofrece pedirle la reseña
+  al cliente por WhatsApp con un toque y marca la cita (`resena_pedida`). La página de la cita del cliente
+  también lo invita a dejar su reseña cuando ya la terminó.
+- **Resumen de la noche:** a la hora que elija la barbería (Configuración → Avisos al celular, 20:00 por
+  defecto) le llega "Mañana: 8 citas · La primera a las 10:00 · Toño 3, Memo 3…". Si mañana abre y no hay
+  citas, la invita a compartir su link.
+- **Recordatorio al cliente:** al apartar (y en la página de su cita) el cliente toca "Sí, avísame" y le llega
+  un aviso un día antes con el link para cambiar o cancelar. Se guarda en `recordatorios/` (solo el servidor
+  lo lee) y se pasa a la cita nueva si la cambia. Nunca se manda de 22:00 a 8:00.
+- Los dos últimos los manda `api/cron.js`, que Vercel corre **cada hora** (`crons` en `vercel.json`, requiere
+  Vercel Pro). Si existe la variable `CRON_SECRET`, se exige. Lógica en `server/rutinas.js`.
+  Pruebas: `npx vite-node tests/rutinas.mjs` (con el emulador de Firestore también prueba las consultas reales).
+
 ## Vista previa de los links y páginas legales
 
 - **Vista previa al compartir** (WhatsApp, Facebook, Instagram, Google): `/r/{slug}` pasa por `api/pagina.js`,
@@ -141,6 +157,7 @@ Firestore Database → Reglas (y Storage → Reglas) → pegar el archivo comple
 negocios/{uid}           nombre, slug, ownerUid, whatsapp, direccion, zona, horario, plan, proHasta
   barberos/ servicios/ clientes/ citas/ ocupados/
   dispositivos/            celulares del dueño que reciben avisos
+recordatorios/{nid_cita}  recordatorio pedido por el cliente (solo el servidor)
   inventario/ ventas_productos/ gastos/ cortes_caja/
 slugs/{slug}             negocioId (para las URLs de reservas)
 usuarios/{uid}           negocioId, nombre, email, whatsapp

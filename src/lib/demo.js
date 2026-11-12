@@ -189,7 +189,7 @@ export function iniciarDemo() {
   try { sessionStorage.setItem('modoDemo', '1'); } catch { /* sin almacenamiento */ }
   sembrar();
   negocio = {
-    id: 'demo', nombre: 'Barbería Demo', slug: SLUG_DEMO, ownerUid: 'demo', whatsapp: '9212494549', telefono: '9212494549',
+    id: 'demo', nombre: 'Barbería Demo', slug: SLUG_DEMO, ownerUid: 'demo', whatsapp: '9212494549', telefono: '9212494549', link_resenas: 'https://g.page/r/barberia-demo/review',
     direccion: 'Centro, Ixhuatlán del Sureste, Ver.', mensaje_ticket: '¡Gracias por tu visita!', zona: ZONA_DEFAULT,
     horario: { ...HORARIO, bloqueos: [{ desde: sumarDias(hoyYmd(), 2), inicio: '12:00', fin: '15:00', barbero: 'principal' }] },
     plan: 'plus', proHasta: null,

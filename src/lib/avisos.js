@@ -48,6 +48,16 @@ export async function avisosActivos() {
   return !!(reg && await reg.pushManager.getSubscription());
 }
 
+// La suscripción de este celular (la crea si no existe)
+async function suscripcionPush() {
+  const reg = await registro();
+  if (!reg) throw new Error('sin-sw');
+  const publica = await fetch('/api/avisos').then((r) => (r.ok ? r.json() : null)).then((j) => j?.publica).catch(() => null);
+  if (!publica) throw new Error('sin-servidor');
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(publica) });
+  return sub.toJSON();
+}
+
 export async function activarAvisos(negocioId) {
   if (!('Notification' in window)) throw new Error('sin-soporte');
   const permiso = await Notification.requestPermission();
@@ -57,12 +67,7 @@ export async function activarAvisos(negocioId) {
     await mostrarLocal({ title: '¡Listo! Así te llegarán los avisos', body: 'Prueba apartar una cita en tu página de reservas de la demo.', url: '/app', tag: 'prueba' });
     return;
   }
-  const reg = await registro();
-  if (!reg) throw new Error('sin-sw');
-  const publica = await fetch('/api/avisos').then((r) => (r.ok ? r.json() : null)).then((j) => j?.publica).catch(() => null);
-  if (!publica) throw new Error('sin-servidor');
-  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(publica) });
-  const { endpoint, keys } = sub.toJSON();
+  const { endpoint, keys } = await suscripcionPush();
   await setDoc(doc(firestore, `negocios/${negocioId}/dispositivos/${await idDe(endpoint)}`), { endpoint, keys, nombre: nombreDispositivo(), creado: new Date().toISOString() });
 }
 
@@ -105,4 +110,29 @@ export function avisarBarberia(negocioId, citaId, anteriorId) {
   try {
     fetch('/api/avisos', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'cita', negocio: negocioId, cita: citaId, ...(anteriorId ? { anterior: anteriorId } : {}) }) }).catch(() => {});
   } catch { /* sin conexión: el barbero lo verá en su agenda */ }
+}
+
+// ---------- Recordatorio para el cliente (un día antes de su cita) ----------
+const CLAVE_RECORDATORIOS = 'recordatoriosPedidos';
+export function tieneRecordatorio(citaId) {
+  try { return JSON.parse(localStorage.getItem(CLAVE_RECORDATORIOS) || '[]').includes(citaId); } catch { return false; }
+}
+function recordarPedido(citaId) {
+  try { const l = JSON.parse(localStorage.getItem(CLAVE_RECORDATORIOS) || '[]'); localStorage.setItem(CLAVE_RECORDATORIOS, JSON.stringify([...l.filter((x) => x !== citaId), citaId].slice(-20))); } catch { /* sin almacenamiento */ }
+}
+export const puedeRecordar = () => esDemo() ? 'Notification' in window : soportaAvisos();
+
+export async function pedirRecordatorio(negocioId, citaId) {
+  if (!('Notification' in window)) throw new Error('sin-soporte');
+  const permiso = await Notification.requestPermission();
+  if (permiso !== 'granted') throw new Error('sin-permiso');
+  if (esDemo()) {
+    await mostrarLocal({ title: 'Así te llegará tu recordatorio', body: 'Un día antes de tu cita, con el link para cambiarla o cancelarla.', url: window.location.pathname, tag: 'prueba-recordatorio' });
+  } else {
+    const suscripcion = await suscripcionPush();
+    const r = await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'recordatorio', negocio: negocioId, cita: citaId, suscripcion }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'No se pudo guardar tu recordatorio.');
+  }
+  recordarPedido(citaId);
 }

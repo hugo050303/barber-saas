@@ -12,7 +12,7 @@ import { importPKCS8, SignJWT } from 'jose';
 import webpush from 'web-push';
 import { verificarTokenFirebase } from './fotos.js';
 import { textoAviso } from './textoAviso.js';
-import { campos, baseFirestore } from './firestoreRest.js';
+import { campos, baseFirestore, aCampos, aFirestore } from './firestoreRest.js';
 
 export class ErrorAviso extends Error {
   constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
@@ -49,7 +49,7 @@ export async function tokenAdmin() {
 
 export function firestoreAdmin() {
   const base = baseFirestore();
-  const pedir = async (ruta, opciones = {}) => fetch(`${base}/${ruta}`, { ...opciones, headers: { Authorization: `Bearer ${await tokenAdmin()}`, 'Content-Type': 'application/json' } });
+  const pedir = async (ruta, opciones = {}) => fetch(ruta.startsWith(':') ? `${base}${ruta}` : `${base}/${ruta}`, { ...opciones, headers: { Authorization: `Bearer ${await tokenAdmin()}`, 'Content-Type': 'application/json' } });
   return {
     async leer(ruta) {
       const r = await pedir(ruta);
@@ -59,14 +59,28 @@ export function firestoreAdmin() {
       return { id: d.name.split('/').pop(), ...campos(d.fields) };
     },
     async listar(ruta) {
-      const r = await pedir(`${ruta}?pageSize=50`);
+      const r = await pedir(`${ruta}?pageSize=300`);
       if (!r.ok) return [];
       return ((await r.json()).documents || []).map((d) => ({ id: d.name.split('/').pop(), ...campos(d.fields) }));
     },
-    async marcar(ruta, campo) {
-      const r = await pedir(`${ruta}?updateMask.fieldPaths=${campo}&currentDocument.exists=true`, { method: 'PATCH', body: JSON.stringify({ fields: { [campo]: { booleanValue: true } } }) });
-      if (!r.ok) throw new ErrorAviso('No se pudo marcar la cita.', 502);
+    // filtros: [[campo, '>=' | '<' | '==', valor]] sobre la colección `coleccion` dentro de `padre` ('' = raíz)
+    async consultar(padre, coleccion, filtros = []) {
+      const OPS = { '>=': 'GREATER_THAN_OR_EQUAL', '<': 'LESS_THAN', '==': 'EQUAL' };
+      const where = filtros.length ? { compositeFilter: { op: 'AND', filters: filtros.map(([campo, op, valor]) => ({ fieldFilter: { field: { fieldPath: campo }, op: OPS[op], value: aFirestore(valor) } })) } } : undefined;
+      const r = await pedir(`${padre}:runQuery`, { method: 'POST', body: JSON.stringify({ structuredQuery: { from: [{ collectionId: coleccion }], ...(where ? { where } : {}), limit: 500 } }) });
+      if (!r.ok) throw new ErrorAviso('No se pudo consultar.', 502);
+      return (await r.json()).filter((x) => x.document).map(({ document: d }) => ({ id: d.name.split('/').pop(), ...campos(d.fields) }));
     },
+    async poner(ruta, datos) {
+      const r = await pedir(ruta, { method: 'PATCH', body: JSON.stringify({ fields: aCampos(datos) }) });
+      if (!r.ok) throw new ErrorAviso('No se pudo guardar.', 502);
+    },
+    async actualizar(ruta, datos) {
+      const mascara = Object.keys(datos).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+      const r = await pedir(`${ruta}?${mascara}&currentDocument.exists=true`, { method: 'PATCH', body: JSON.stringify({ fields: aCampos(datos) }) });
+      if (!r.ok) throw new ErrorAviso('No se pudo guardar.', 502);
+    },
+    async marcar(ruta, campo) { return this.actualizar(ruta, { [campo]: true }); },
     async borrar(ruta) { await pedir(ruta, { method: 'DELETE' }); },
   };
 }
@@ -79,7 +93,7 @@ export function llavePublica() {
   return publica;
 }
 
-function enviarPush(suscripcion, datos) {
+export function enviarPush(suscripcion, datos) {
   webpush.setVapidDetails('https://reservas.somosdom.com', llavePublica(), process.env.VAPID_PRIVATE_KEY);
   return webpush.sendNotification(suscripcion, JSON.stringify(datos), { TTL: 6 * 3600, urgency: 'high' });
 }
@@ -115,6 +129,13 @@ export async function avisarCita({ negocio, cita, anterior }, { db = firestoreAd
       if (a && a.estado === 'cancelada' && a.cambio && !a.avisada_cancelacion && a.cliente_telefono === c.cliente_telefono) {
         tipo = 'cambio'; previa = a;
         await db.marcar(`negocios/${negocio}/citas/${anterior}`, 'avisada_cancelacion');
+        // Si había pedido que le recordaran la cita, el recordatorio pasa a la nueva
+        await db.leer(`recordatorios/${negocio}_${anterior}`).then(async (rec) => {
+          if (!rec) return;
+          const { id: _id, ...resto } = rec;
+          await db.poner(`recordatorios/${negocio}_${cita}`, { ...resto, cita, fecha_hora: c.fecha_hora });
+          await db.borrar(`recordatorios/${negocio}_${anterior}`);
+        }).catch(() => {});
       }
     }
   }

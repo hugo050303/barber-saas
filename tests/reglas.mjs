@@ -132,6 +132,8 @@ ok(await intenta(() => N.cancelarPorCliente(mia, { cambio: true })), 'público c
 ok(!(await getDoc(doc(firestore, `negocios/${ua.uid}/ocupados/${idMia}`))).exists(), 'al cancelar, la hora queda libre');
 ok(!(await intenta(() => updateDoc(refMia, { estado: 'pendiente' }))), 'público NO reactiva una cita cancelada');
 ok(!(await intenta(() => getDocs(collection(firestore, `negocios/${ua.uid}/dispositivos`)))), 'público NO ve los celulares del dueño');
+ok(!(await intenta(() => getDoc(doc(firestore, `recordatorios/${ua.uid}_${idMia}`)))), 'público NO lee recordatorios');
+ok(!(await intenta(() => setDoc(doc(firestore, `recordatorios/${ua.uid}_${idMia}`), { endpoint: 'https://x/y', fecha_hora: 'x' }))), 'público NO crea recordatorios directo (solo el servidor)');
 await signInWithEmailAndPassword(auth, 'a@test.com', 'secreto123');
 const disp = (datos) => setDoc(doc(firestore, `negocios/${ua.uid}/dispositivos/abc`), { endpoint: 'https://fcm.googleapis.com/fcm/send/xyz123', keys: { p256dh: 'a', auth: 'b' }, nombre: 'Android · Chrome', creado: 'hoy', ...datos });
 ok(await intenta(() => disp({})), 'dueño guarda su celular para avisos');

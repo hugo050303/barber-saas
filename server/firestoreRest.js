@@ -17,3 +17,14 @@ export function deFirestore(v) {
   return null;
 }
 export const campos = (f) => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, deFirestore(v)]));
+
+// Valor de JavaScript -> valor de Firestore (REST)
+export function aFirestore(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'string') return { stringValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(aFirestore) } };
+  return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, aFirestore(x)])) } };
+}
+export const aCampos = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, aFirestore(v)]));

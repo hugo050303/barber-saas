@@ -11,6 +11,7 @@ import { Cargando, Field } from '../components/ui';
 import BotonInstalar from '../components/BotonInstalar';
 import { MARCA } from '../config';
 import { VolverDemo } from '../components/FranjaDemo';
+import RecordatorioCita from '../components/RecordatorioCita';
 
 function Paso({ n, titulo, activo, hecho, resumen, onEditar, children }) {
   return (
@@ -196,6 +197,7 @@ export default function Reserva() {
               <div key={k} className="flex justify-between gap-4 px-4 py-3"><span className="text-ink-3">{k}</span><span className="text-right font-semibold first-letter:uppercase">{v}</span></div>
             ))}
           </div>
+          <RecordatorioCita negocioId={negocio.id} citaId={citaId} className="mt-5" />
           {miLink && (
             <div className="mt-5 rounded border border-dashed border-ink/30 bg-card p-4">
               <p className="font-semibold">¿Te surgió algo?</p>

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { MapPin, Copy, Clock, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { auth } from '../firebase';
 import { actualizarNegocio } from '../lib/negocio';
 import { useSesion } from '../lib/sesion';
@@ -22,8 +22,40 @@ function Seccion({ titulo, texto, children }) {
   );
 }
 
+// Link de Google para dejar una reseña (Perfil de Negocio → Pedir reseñas)
+function LinkResenas({ negocio }) {
+  const [link, setLink] = useState(negocio.link_resenas || '');
+  const [guardando, setGuardando] = useState(false);
+  const cambio = link.trim() !== (negocio.link_resenas || '');
+  async function guardar() {
+    const v = link.trim();
+    if (v && !/^https:\/\/\S+\.\S+/.test(v)) return toast.error('Pega el link completo, empieza con https://');
+    setGuardando(true);
+    try { await actualizarNegocio(negocio.id, { link_resenas: v }); toast.success(v ? 'Link de reseñas guardado' : 'Link de reseñas quitado'); }
+    catch { toast.error('No se pudo guardar.'); }
+    setGuardando(false);
+  }
+  return (
+    <div id="resenas" className="scroll-mt-6 space-y-3">
+      <ol className="space-y-2 text-[15px]">
+        <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">1</span><span>Entra a tu <b>Perfil de Negocio</b> en Google (busca el nombre de tu barbería en Google o Maps).</span></li>
+        <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">2</span><span>Toca <b>Pedir reseñas</b> (o «Compartir formulario de reseñas») y copia el link. Se ve como <span className="font-mono text-sm">https://g.page/r/…/review</span>.</span></li>
+        <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">3</span><span>Pégalo aquí:</span></li>
+      </ol>
+      <div className="flex gap-2">
+        <input className="input" inputMode="url" placeholder="https://g.page/r/…/review" value={link} onChange={(e) => setLink(e.target.value)} aria-label="Link para pedir reseñas" />
+        <button type="button" onClick={guardar} disabled={guardando || !cambio} className="btn-primary shrink-0">Guardar</button>
+      </div>
+      {negocio.link_resenas && <p className="text-sm text-verde">Listo: al marcar una cita como cobrada podrás pedirle la reseña al cliente.</p>}
+    </div>
+  );
+}
+
 export default function Configuracion() {
   const { negocio, user, pro, demo } = useSesion();
+  const { hash } = useLocation();
+  // /app/configuracion#resenas lleva directo a esa sección
+  useEffect(() => { if (hash) setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }, [hash]);
   const guardarCampo = (campos) => actualizarNegocio(negocio.id, campos);
   const urlReservas = `${window.location.origin}/r/${negocio.slug}`;
   const [f, setF] = useState({
@@ -131,6 +163,10 @@ export default function Configuracion() {
           <li className="flex gap-3"><span className="display w-5 shrink-0 text-xl text-rojo">4</span><span>Ponlo también en tu bio de Instagram, Facebook y en tu estado de WhatsApp.</span></li>
         </ol>
         <a href="https://business.google.com/" target="_blank" rel="noreferrer" className="btn-ghost mt-4"><MapPin size={16} /> Abrir Perfil de Negocio</a>
+      </Seccion>
+
+      <Seccion titulo="Reseñas en Google" texto="Más reseñas = más arriba en Google Maps. Al cobrar una cita te ofrecemos pedírsela al cliente por WhatsApp con un toque.">
+        <LinkResenas negocio={negocio} />
       </Seccion>
 
       <Seccion titulo="Tu WhatsApp" texto="Que tu WhatsApp conteste solo con tu link de reservas. Gratis, con la app de WhatsApp Business.">

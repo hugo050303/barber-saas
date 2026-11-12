@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Filo · imágenes de promoción</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  /* ?p=hero|avisos|faltas|negocio|precio|link   &f=post (1080×1350) | historia (1080×1920) */
+  body { width: 1080px; overflow: hidden; }
+  body.f-post { height: 1350px; } body.f-historia { height: 1920px; }
+  .pieza { display: none; position: relative; width: 1080px; height: 100%; overflow: hidden; }
+  .pieza.ver { display: block; }
+  .oscura { background: var(--tinta); color: var(--papel); }
+  .clara { background: var(--papel); color: var(--tinta); }
+  .franja { position: absolute; top: 0; left: 0; right: 0; height: 22px; }
+  .dentro { position: absolute; inset: 0; padding: 96px 72px 72px; display: flex; flex-direction: column; }
+  .f-historia .dentro { padding: 250px 72px 300px; }
+  .oscura .ceja { color: rgba(245,242,236,.6); } .clara .ceja { color: var(--tinta3); }
+  h1 { font-size: 138px; margin-top: 26px; }
+  .f-historia h1 { font-size: 158px; }
+  .sub { font-size: 40px; line-height: 1.3; margin-top: 30px; max-width: 880px; }
+  .oscura .sub { color: rgba(245,242,236,.8); } .clara .sub { color: var(--tinta2); }
+  .pie { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .pie .url { font-size: 30px; font-weight: 700; }
+  .oscura .pie .url { color: rgba(245,242,236,.75); } .clara .pie .url { color: var(--tinta2); }
+
+  /* hero */
+  .p-hero h1, .p-faltas h1 { max-width: 620px; }
+  .p-hero .sub, .p-faltas .sub { max-width: 470px; font-size: 35px; }
+  .f-post .p-faltas h1 { font-size: 116px; }
+  .p-hero .cel, .p-faltas .cel { position: absolute; right: 50px; top: 150px; --w: 440px; transform: rotate(4deg); }
+  .f-historia .p-hero h1, .f-historia .p-faltas h1 { max-width: none; }
+  .f-historia .p-hero .sub, .f-historia .p-faltas .sub { max-width: 900px; font-size: 42px; }
+  .f-historia .p-hero .cel, .f-historia .p-faltas .cel { right: auto; left: 50%; top: 1090px; --w: 560px; transform: translateX(-50%) rotate(0deg); }
+  .f-historia .p-faltas .cel { top: 1010px; }
+  .f-historia .p-hero .pie, .f-historia .p-faltas .pie { position: absolute; left: 72px; right: 72px; bottom: 270px; z-index: 3; }
+  .f-historia .p-hero::after, .f-historia .p-faltas::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 700px; background: linear-gradient(rgba(26,23,20,0), var(--tinta) 52%); z-index: 2; }
+  .p-hero .pildora { margin-top: 44px; align-self: flex-start; }
+
+  /* avisos */
+  .p-avisos .pila { margin-top: 56px; display: flex; flex-direction: column; gap: 26px; align-items: center; }
+  .p-avisos .aviso { width: 880px; }
+  .p-avisos .aviso:nth-child(1) { transform: rotate(-1.5deg); } .p-avisos .aviso:nth-child(2) { transform: rotate(1deg) translateX(18px); } .p-avisos .aviso:nth-child(3) { transform: rotate(-0.6deg) translateX(-10px); }
+  .f-historia .p-avisos .pila { margin-top: 90px; gap: 40px; }
+  .f-post .p-avisos h1 { font-size: 128px; } .f-post .p-avisos .sub { font-size: 36px; margin-top: 22px; }
+  .f-post .p-avisos .pila { margin-top: 40px; gap: 20px; }
+  .f-historia .p-avisos .aviso { width: 920px; padding: 34px 34px; } .f-historia .p-avisos .aviso .t { font-size: 36px; } .f-historia .p-avisos .aviso .c { font-size: 30px; }
+  .f-historia .p-avisos .pila { margin-top: 110px; gap: 50px; }
+
+  /* faltas */
+  .p-faltas .aviso { position: absolute; width: 640px; left: 60px; bottom: 190px; transform: rotate(-2deg); z-index: 2; }
+  .p-faltas .aviso .t { font-size: 28px; } .p-faltas .aviso .c { font-size: 24px; }
+  .f-historia .p-faltas .aviso { width: 860px; left: 110px; bottom: 560px; z-index: 3; }
+  .f-historia .p-faltas .aviso .t { font-size: 32px; } .f-historia .p-faltas .aviso .c { font-size: 28px; }
+
+  /* negocio */
+  .p-negocio h1 { max-width: 560px; font-size: 102px; }
+  .p-negocio ul { list-style: none; margin-top: 44px; display: flex; flex-direction: column; gap: 22px; max-width: 560px; }
+  .p-negocio li { display: flex; gap: 20px; align-items: flex-start; font-size: 36px; line-height: 1.2; font-weight: 700; }
+  .p-negocio li span { font-weight: 500; color: var(--tinta2); display: block; font-size: 28px; margin-top: 2px; }
+  .p-negocio li svg { width: 46px; height: 46px; flex: none; margin-top: 2px; }
+  .p-negocio .cel { position: absolute; right: 40px; top: 300px; --w: 400px; transform: rotate(3deg); }
+  .f-historia .p-negocio h1 { max-width: none; font-size: 150px; }
+  .f-historia .p-negocio ul { max-width: 520px; margin-top: 70px; gap: 34px; }
+  .f-historia .p-negocio .cel { top: 800px; right: 30px; --w: 450px; }
+
+  /* precio */
+  .p-precio h1 { font-size: 170px; }
+  .f-historia .p-precio h1 { font-size: 200px; }
+  .planes { margin-top: 44px; display: flex; flex-direction: column; gap: 20px; }
+  .plan { display: flex; align-items: center; justify-content: space-between; gap: 24px; border: 2px solid rgba(245,242,236,.22); border-radius: 26px; padding: 26px 34px; }
+  .plan .n { font-family: Titulo; font-size: 62px; text-transform: uppercase; line-height: 1; }
+  .plan .d { font-size: 27px; color: rgba(245,242,236,.72); margin-top: 8px; line-height: 1.25; }
+  .plan .p { font-family: Titulo; font-size: 88px; line-height: 1; white-space: nowrap; text-align: right; }
+  .plan .p small { font-family: Texto; font-size: 26px; font-weight: 700; color: rgba(245,242,236,.7); }
+  .plan.fund { background: var(--papel); color: var(--tinta); border-color: var(--papel); position: relative; }
+  .plan.fund .d { color: var(--tinta2); } .plan.fund .p small { color: var(--tinta3); }
+  .plan.fund .p s { font-family: Texto; font-size: 30px; color: var(--tinta3); font-weight: 700; margin-right: 10px; }
+  .plan.fund .sello { position: absolute; top: -22px; left: 30px; background: var(--rojo); color: #fff; font-weight: 700; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 18px; border-radius: 99px; }
+  .f-historia .planes { margin-top: 80px; gap: 34px; } .f-historia .plan { padding: 40px 36px; }
+  .p-precio .wa { margin-top: 34px; font-size: 34px; color: rgba(245,242,236,.85); }
+  .f-historia .p-precio .wa { margin-top: 60px; font-size: 40px; }
+
+  /* link */
+  .p-link h1 { font-size: 132px; }
+  .chat { margin: 36px auto 0; width: 800px; background: #E7FFDB; border-radius: 30px 30px 6px 30px; padding: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.18); transform: rotate(-1.2deg); }
+  .chat img { width: 100%; display: block; border-radius: 20px 20px 0 0; }
+  .chat .meta { background: #D3F1C6; padding: 18px 22px; border-radius: 0 0 20px 20px; }
+  .chat .meta b { display: block; font-size: 30px; } .chat .meta span { font-size: 24px; color: #54705a; }
+  .chat .liga { font-size: 30px; color: #1264a3; padding: 16px 12px 6px; }
+  .f-historia .chat { margin-top: 110px; width: 920px; }
+  .lugares { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 34px; }
+  .lugares span { border: 2px solid var(--tinta); border-radius: 99px; padding: 10px 22px; font-size: 26px; font-weight: 700; }
+  .f-historia .lugares span { font-size: 32px; padding: 14px 28px; }
+  .f-historia .lugares { margin-top: 80px; }
+</style>
+</head>
+<body>
+<template id="t-logo"><span class="logo"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="var(--logo-fondo)"/><path d="M9 25 L23 7" stroke="#B4322A" stroke-width="4" stroke-linecap="round"/><path d="M9 7 L14 13" stroke="var(--logo-raya)" stroke-width="2.5" stroke-linecap="round"/></svg>FILO</span></template>
+<template id="t-icono"><svg class="icono" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#1A1714"/><path d="M9 25 L23 7" stroke="#B4322A" stroke-width="4" stroke-linecap="round"/><path d="M9 7 L14 13" stroke="#F5F2EC" stroke-width="2.5" stroke-linecap="round"/></svg></template>
+<template id="t-palomita"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#B4322A"/><path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+
+<!-- 1. Tus clientes apartan solos -->
+<section class="pieza oscura p-hero" data-p="hero">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Software para barberías</p>
+    <h1 class="titulo">Tus clientes apartan <span class="rojo">solos.</span></h1>
+    <p class="sub">Sin llamadas ni mensajes a media chamba. Eligen servicio, barbero y hora desde su celular.</p>
+    <span class="pildora">Empieza gratis</span>
+    <div class="pie"><i data-logo></i><span class="url">reservas.somosdom.com</span></div>
+  </div>
+  <div class="cel"><div class="pantalla"><img src="../capturas/reserva-3.png" style="transform: translateY(-37.3%)"></div></div>
+</section>
+
+<!-- 2. Te avisa al celular -->
+<section class="pieza clara p-avisos" data-p="avisos">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Filo · software para barberías</p>
+    <h1 class="titulo">Te avisa al <span class="rojo">celular.</span></h1>
+    <p class="sub">Cuando un cliente aparta, cancela o cambia su cita. Y cada noche, cómo viene tu día de mañana.</p>
+    <div class="pila">
+      <div class="aviso"><i data-icono></i><div><p class="app"><span>FILO</span><span>ahora</span></p><p class="t">Nueva cita · sáb 14 nov 9:45 am</p><p class="c">Juan Pérez · Fade con Iván</p></div></div>
+      <div class="aviso"><i data-icono></i><div><p class="app"><span>FILO</span><span>hace 12 min</span></p><p class="t">Canceló Luis Cruz</p><p class="c">vie 13 nov 5:00 pm · Corte clásico. La hora quedó libre.</p></div></div>
+      <div class="aviso"><i data-icono></i><div><p class="app"><span>FILO</span><span>8:00 pm</span></p><p class="t">Mañana: 8 citas</p><p class="c">La primera a las 10:30 am · Toño 3, Memo 3, Iván 2</p></div></div>
+    </div>
+    <div class="pie"><i data-logo></i><span class="url">Empieza gratis · reservas.somosdom.com</span></div>
+  </div>
+</section>
+
+<!-- 3. Que no te dejen plantado -->
+<section class="pieza oscura p-faltas" data-p="faltas">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Menos citas perdidas</p>
+    <h1 class="titulo">Que no te dejen <span class="rojo">plantado.</span></h1>
+    <p class="sub">Filo le recuerda su cita un día antes. Y si no puede, la cambia o cancela él solo: la hora queda libre para otro cliente.</p>
+    <div class="pie"><i data-logo></i><span class="url">reservas.somosdom.com</span></div>
+  </div>
+  <div class="cel"><div class="pantalla"><img src="../capturas/mi-cita.png"></div></div>
+  <div class="aviso"><i data-icono></i><div><p class="app"><span>FILO</span><span>ahora</span></p><p class="t">Mañana tienes cita en Tu Barbería</p><p class="c">Fade con Iván a las 9:45 am. ¿No puedes? Toca aquí para cambiarla o cancelarla.</p></div></div>
+</section>
+
+<!-- 4. Toda tu barbería en tu celular -->
+<section class="pieza clara p-negocio" data-p="negocio">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Filo · software para barberías</p>
+    <h1 class="titulo">Toda tu barbería en tu <span class="rojo">celular.</span></h1>
+    <ul>
+      <li><i data-palomita></i><div>Agenda por barbero<span>Hora por hora, con sus descansos</span></div></li>
+      <li><i data-palomita></i><div>Reservas por link<span>Para Google Maps, Instagram y WhatsApp</span></div></li>
+      <li><i data-palomita></i><div>Caja y corte del día<span>Con ticket impreso</span></div></li>
+      <li><i data-palomita></i><div>Nómina y comisiones<span>Se calculan solas</span></div></li>
+      <li><i data-palomita></i><div>Clientes y reportes<span>Quién regresa y quién dejó de venir</span></div></li>
+    </ul>
+    <div class="pie"><i data-logo></i><span class="url">Empieza gratis</span></div>
+  </div>
+  <div class="cel"><div class="pantalla"><img src="../capturas/agenda.png"></div></div>
+</section>
+
+<!-- 5. Precios -->
+<section class="pieza oscura p-precio" data-p="precio">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Precios claros · sin contratos</p>
+    <h1 class="titulo">Empieza <span class="rojo">gratis.</span></h1>
+    <div class="planes">
+      <div class="plan"><div><p class="n">Gratis</p><p class="d">1 barbero · agenda, reservas por link, clientes y avisos</p></div><p class="p">$0</p></div>
+      <div class="plan fund"><span class="sello">Precio fundador · primeras 20 barberías</span><div><p class="n">Pro</p><p class="d">Hasta 3 barberos · caja, inventario, nómina, reportes y fotos</p></div><p class="p"><s>$299</s>$199 <small>/mes</small></p></div>
+      <div class="plan"><div><p class="n">Plus</p><p class="d">Barberos ilimitados y todo lo de Pro</p></div><p class="p">$499 <small>/mes</small></p></div>
+    </div>
+    <p class="wa">Escríbenos por WhatsApp: <b>921 249 4549</b></p>
+    <div class="pie"><i data-logo></i><span class="url">reservas.somosdom.com</span></div>
+  </div>
+</section>
+
+<!-- 6. Un link -->
+<section class="pieza clara p-link" data-p="link">
+  <div class="franja poste"></div>
+  <div class="dentro">
+    <p class="ceja">Tu página de reservas</p>
+    <h1 class="titulo">Un link. Todas tus <span class="rojo">citas.</span></h1>
+    <div class="chat">
+      <img src="../capturas/og.png">
+      <div class="meta"><b>Tu Barbería · Aparta tu cita</b><span>Aparta tu cita en línea, sin llamadas ni esperas.</span></div>
+      <p class="liga">reservas.somosdom.com/r/tu-barberia</p>
+    </div>
+    <div class="lugares"><span>Google Maps</span><span>Instagram</span><span>Estado de WhatsApp</span><span>Facebook</span></div>
+    <div class="pie"><i data-logo></i><span class="url">Empieza gratis · reservas.somosdom.com</span></div>
+  </div>
+</section>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  const p = q.get('p') || 'hero'; const f = q.get('f') || 'post';
+  document.body.classList.add(`f-${f}`);
+  for (const s of document.querySelectorAll('.pieza')) {
+    s.classList.toggle('ver', s.dataset.p === p);
+    const oscura = s.classList.contains('oscura');
+    s.style.setProperty('--logo-fondo', oscura ? '#F5F2EC' : '#1A1714'); s.style.setProperty('--logo-raya', oscura ? '#1A1714' : '#F5F2EC');
+  }
+  for (const [attr, id] of [['logo', 't-logo'], ['icono', 't-icono'], ['palomita', 't-palomita']]) {
+    for (const el of document.querySelectorAll(`[data-${attr}]`)) el.replaceWith(document.getElementById(id).content.cloneNode(true));
+  }
+</script>
+</body>
+</html>

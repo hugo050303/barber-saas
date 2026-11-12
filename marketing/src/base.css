@@ -1,0 +1,32 @@
+/* Identidad de Filo para el material de promoción */
+@font-face { font-family: Titulo; src: url(fuentes/archivo-titulo.ttf); font-weight: 800; }
+@font-face { font-family: Texto; src: url(fuentes/archivo-texto.ttf); font-weight: 500; }
+@font-face { font-family: Texto; src: url(fuentes/archivo-negrita.ttf); font-weight: 700; }
+:root { --tinta: #1A1714; --tinta2: #4A453F; --tinta3: #7C756C; --papel: #F5F2EC; --carta: #FFFDF9; --linea: #E2DBD0; --rojo: #B4322A; --rojo-suave: #F6E3DF; --azul: #22324A; --verde: #2F6B4F; --ambar: #9A6A12; --ambar-suave: #F5EAD3; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #111; font-family: Texto, sans-serif; font-weight: 500; color: var(--tinta); -webkit-font-smoothing: antialiased; }
+b, strong { font-weight: 700; }
+.titulo { font-family: Titulo; font-weight: 800; text-transform: uppercase; line-height: 0.9; letter-spacing: -0.5px; }
+.ceja { font-weight: 700; letter-spacing: 6px; text-transform: uppercase; font-size: 26px; }
+.poste { background: repeating-linear-gradient(135deg, var(--rojo) 0 22px, var(--papel) 22px 44px, var(--azul) 44px 66px, var(--papel) 66px 88px); }
+.rojo { color: var(--rojo); }
+
+/* Logo */
+.logo { display: inline-flex; align-items: center; gap: 16px; font-family: Titulo; font-weight: 800; font-size: 56px; line-height: 1; }
+.logo svg { width: 60px; height: 60px; }
+
+/* Celular */
+.cel { --w: 440px; position: relative; width: var(--w); aspect-ratio: 390 / 844; border-radius: calc(var(--w) * 0.135); background: #0b0a09; padding: calc(var(--w) * 0.028); box-shadow: 0 40px 90px rgba(0,0,0,.45), inset 0 0 0 2px #3a3530; flex: none; }
+.cel .pantalla { position: relative; width: 100%; height: 100%; border-radius: calc(var(--w) * 0.11); overflow: hidden; background: var(--papel); }
+.cel .pantalla img { position: absolute; left: 0; top: 0; width: 100%; display: block; }
+.cel::after { content: ''; position: absolute; top: calc(var(--w) * 0.05); left: 50%; width: 27%; height: calc(var(--w) * 0.062); transform: translateX(-50%); background: #0b0a09; border-radius: 99px; }
+
+/* Aviso (notificación) */
+.aviso { display: flex; gap: 22px; align-items: flex-start; background: rgba(255,253,249,.97); border-radius: 36px; padding: 26px 30px; box-shadow: 0 24px 60px rgba(0,0,0,.28); width: 760px; color: var(--tinta); }
+.aviso .icono { width: 76px; height: 76px; border-radius: 18px; flex: none; }
+.aviso .app { font-size: 22px; color: var(--tinta3); font-weight: 700; letter-spacing: .5px; display: flex; justify-content: space-between; }
+.aviso .t { font-size: 32px; font-weight: 700; margin-top: 4px; line-height: 1.15; }
+.aviso .c { font-size: 28px; color: var(--tinta2); margin-top: 4px; line-height: 1.25; }
+.aviso > div { flex: 1; min-width: 0; }
+
+.pildora { display: inline-flex; align-items: center; gap: 14px; background: var(--rojo); color: #fff; font-weight: 700; border-radius: 999px; padding: 22px 40px; font-size: 38px; }
